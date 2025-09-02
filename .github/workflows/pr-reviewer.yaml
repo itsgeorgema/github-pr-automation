@@ -1,0 +1,54 @@
+name: PR Reviewer
+
+on:
+    pull_request:
+        types: [opened, synchronize, reopened]
+jobs:
+    lint-and-format:
+        runs-on: ubuntu-latest
+        permissions:
+            contents: write
+        steps:
+            - name: Checkout Code
+              uses: actions/checkout@v4
+
+            - name: Set up Node.js
+              uses: actions/setup-node@v4
+              with:
+                  node-version: '20'
+
+            - name: Install Dependencies
+              run: npm ci
+              
+            - name: Run ESLint
+              run: npm run lint
+
+            - name: Run Prettier
+              run: npm run format
+    static-analysis:
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout Code
+              uses: actions/checkout@v4
+
+            #setup more steps for static analysis with a tool
+            
+    ai-reviewer:
+        runs-on: ubuntu-latest
+        needs: [lint-and-format, static-analysis]
+        permissions:
+            contents: read
+            pull-requests: write
+        steps:
+            - name: Checkout Code
+              uses: actions/checkout@v4
+            
+            - name: Get PR Diff
+              id: get_diff
+              run: |
+                echo "diff=$(curl -s ${{ github.event.pull_request.diff_url }} | tail -n +5)" >> $GITHUB_OUTPUT
+
+            - name: Call AI Reviewer
+              run: | 
+                echo "yo"
+              #call mcp server with the diff, and the server will use github token to comment on pr

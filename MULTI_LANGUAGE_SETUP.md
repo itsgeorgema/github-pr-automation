@@ -1,6 +1,6 @@
 # Multi-Language Support Guide
 
-This guide covers the comprehensive multi-language support for JavaScript/TypeScript, Python, Java, C++, and SQL in the GitHub PR automation system.
+This guide covers the comprehensive multi-language support for JavaScript/TypeScript, Python, Java, C++, and SQL in the Watchdog system.
 
 ## Supported Languages & Tools
 

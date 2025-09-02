@@ -114,32 +114,32 @@ jobs:
 
       - name: Run Multi-Language Lint Check
         run: |
-          echo "🔍 Running linting checks for all languages..."
+          echo "Running linting checks for all languages..."
           npm run lint:check
         continue-on-error: true
 
       - name: Run Multi-Language Format Check
         run: |
-          echo "💅 Running format checks for all languages..."
+          echo "Running format checks for all languages..."
           npm run format:check
         continue-on-error: true
 
       - name: Auto-fix All Languages
         run: |
-          echo "🔧 Auto-fixing issues for all languages..."
+          echo "Auto-fixing issues for all languages..."
           npm run lint
         continue-on-error: true
 
       - name: Auto-format All Languages
         run: |
-          echo "✨ Auto-formatting code for all languages..."
+          echo "Auto-formatting code for all languages..."
           npm run format
         continue-on-error: true
 
       - name: Run Python Security Check
         run: |
           if find . -name "*.py" -type f | head -1 | grep -q .; then
-            echo "🔒 Running Python security checks..."
+            echo "Running Python security checks..."
             bandit -r . -f json -o bandit-report.json || true
             safety check --json --output safety-report.json || true
           else
@@ -194,10 +194,13 @@ jobs:
         run: npm audit --audit-level=high
         continue-on-error: true
 
-      - name: Run CodeQL Analysis
-        uses: github/codeql-action/analyze@v3
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
         with:
           languages: javascript
+
+      - name: Run CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
         continue-on-error: true
 
   dependency-review:

@@ -1,6 +1,6 @@
-# GitHub PR Automation Suite
+# Watchdog
 
-A comprehensive, plug-and-play, multi-language GitHub PR automation system supporting JavaScript/TypeScript, Python, Java, C++, and SQL with intelligent linting, formatting, security scanning, and AI-powered code reviews via an MCP server.
+Watchdog is a comprehensive, plug-and-play, multi-language GitHub PR automation system supporting JavaScript/TypeScript, Python, Java, C++, and SQL with intelligent linting, formatting, security scanning, and AI-powered code reviews via an MCP server.
 
 ## Features
 
@@ -39,8 +39,8 @@ graph TD
 ### 1. Clone and Install
 
 ```bash
-git clone <your-repo>
-cd github-pr-automation
+git clone https://github.com/itsgeorgema/watchdog.git
+cd watchdog
 npm install
 ```
 
@@ -72,7 +72,7 @@ MCP_SERVER_URL=https://your-server.com  # Your MCP server URL
 ## Project Structure
 
 ```
-github-pr-automation/
+watchdog/
 ├── .github/workflows/
 │   └── pr-reviewer.yaml          # Multi-language workflow
 ├── .eslintrc.yml                 # JavaScript/TypeScript linting
@@ -383,10 +383,10 @@ MIT License - see [LICENSE](LICENSE) file for details.
 
 ---
 
-**To automate your PRs:**
+**To automate your PRs with Watchdog:**
 
 1. **Quick Start**: Create a pull request to test the multi-language system
 2. **AI Reviews**: Follow the [MCP Setup Guide](./MCP_SETUP_GUIDE.md) for intelligent code reviews
 3. **Multi-Language Setup**: Check the [Multi-Language Setup Guide](./MULTI_LANGUAGE_SETUP.md) for advanced configuration
 
-The system automatically detects your project's languages and applies the appropriate tools!
+Watchdog automatically detects your project's languages and applies the appropriate tools!

@@ -1,7 +1,7 @@
 {
-  "name": "github-pr-automation",
+  "name": "watchdog",
   "version": "1.0.0",
-  "description": "Comprehensive GitHub PR automation with linting, formatting, and AI review",
+  "description": "Watchdog: comprehensive GitHub PR automation with linting, formatting, and AI review",
   "main": "index.js",
   "scripts": {
     "lint": "npm run lint:js && npm run lint:python && npm run lint:java && npm run lint:cpp && npm run lint:sql",

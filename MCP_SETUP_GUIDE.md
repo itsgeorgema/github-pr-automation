@@ -1,6 +1,6 @@
-# MCP Server Setup Guide for Multi-Language GitHub PR Automation
+# MCP Server Setup Guide for Watchdog
 
-This guide walks you through setting up a Model Context Protocol (MCP) server to enable AI-powered code reviews for multi-language projects (JavaScript/TypeScript, Python, Java, C++, SQL) in your GitHub PR automation workflow.
+This guide walks you through setting up a Model Context Protocol (MCP) server to enable AI-powered code reviews for multi-language projects (JavaScript/TypeScript, Python, Java, C++, SQL) in your Watchdog workflow.
 
 ## Table of Contents
 

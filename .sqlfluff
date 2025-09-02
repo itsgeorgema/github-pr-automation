@@ -1,0 +1,101 @@
+[sqlfluff]
+# SQL linting and formatting configuration
+
+# Core settings
+dialect = postgres
+templater = jinja
+sql_file_exts = .sql,.SQL,.dml,.ddl
+
+# Rule settings
+rules = all
+
+# Exclude specific rules that might be too strict
+exclude_rules = 
+    # Disable some overly strict rules
+    L034,  # Select wildcards then simple targets before calculations and aggregates
+    L036,  # Select targets should be on a new line unless there is only one select target
+    L044,  # Query produces an unknown number of result columns
+    
+# Layout configuration
+[sqlfluff:layout:type:comma]
+spacing_before = touch
+line_position = trailing
+
+[sqlfluff:layout:type:binary_operator]
+spacing_within = touch
+line_position = leading
+
+# Indentation
+[sqlfluff:indentation]
+indent_unit = space
+tab_space_size = 2
+indented_joins = false
+indented_ctes = false
+indented_using_on = true
+template_blocks_indent = true
+
+# Capitalisation
+[sqlfluff:rules:capitalisation.keywords]
+capitalisation_policy = upper
+
+[sqlfluff:rules:capitalisation.identifiers]
+capitalisation_policy = lower
+
+[sqlfluff:rules:capitalisation.functions]
+capitalisation_policy = upper
+
+[sqlfluff:rules:capitalisation.literals]
+capitalisation_policy = upper
+
+# Aliasing
+[sqlfluff:rules:aliasing.table]
+aliasing = explicit
+
+[sqlfluff:rules:aliasing.column]
+aliasing = explicit
+
+[sqlfluff:rules:aliasing.expression]
+allow_scalar = true
+
+# Ambiguous rules
+[sqlfluff:rules:ambiguous.join]
+fully_qualify_join_types = outer
+
+[sqlfluff:rules:ambiguous.column_references]
+group_by_and_order_by_style = explicit
+
+# Convention rules
+[sqlfluff:rules:convention.select_trailing_comma]
+select_clause_trailing_comma = forbid
+
+[sqlfluff:rules:convention.count_rows]
+prefer_count_1 = false
+prefer_count_0 = false
+
+[sqlfluff:rules:convention.terminator]
+multiline_newline = false
+require_final_semicolon = false
+
+# Layout rules
+[sqlfluff:rules:layout.long_lines]
+ignore_comment_lines = true
+ignore_comment_clauses = true
+
+[sqlfluff:rules:layout.select_targets]
+wildcard_policy = single
+
+# Structure rules
+[sqlfluff:rules:structure.subquery]
+forbid_subquery_in = both
+
+# Jinja templater settings
+[sqlfluff:templater:jinja]
+apply_dbt_builtins = true
+
+# Library path for custom macros
+library_path = macros
+
+# Jinja context
+[sqlfluff:templater:jinja:context]
+# Add any custom Jinja variables here
+# my_var = my_value

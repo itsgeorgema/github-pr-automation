@@ -1,0 +1,45 @@
+[flake8]
+# Python linting configuration
+max-line-length = 100
+extend-ignore = 
+    E203,  # whitespace before ':'
+    W503,  # line break before binary operator
+    E501,  # line too long (handled by black)
+    W504,  # line break after binary operator
+    E231,  # missing whitespace after ','
+    E701,  # multiple statements on one line
+
+exclude =
+    .git,
+    __pycache__,
+    .venv,
+    venv,
+    env,
+    .env,
+    build,
+    dist,
+    .eggs,
+    *.egg,
+    node_modules,
+    .pytest_cache,
+    .coverage,
+    htmlcov,
+    .tox,
+    migrations,
+    .mypy_cache
+
+max-complexity = 10
+docstring-convention = google
+
+# Per-file ignores
+per-file-ignores =
+    __init__.py:F401  # imported but unused
+    tests/*:S101,S311  # assert allowed in tests, pseudo-random generators ok
+    */settings/*:S105  # hardcoded password false positives
+    */migrations/*:E501  # long lines ok in migrations
+
+# Import order
+import-order-style = google
+application-import-names = 
+    myapp,
+    src

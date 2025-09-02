@@ -4,10 +4,30 @@
   "description": "Comprehensive GitHub PR automation with linting, formatting, and AI review",
   "main": "index.js",
   "scripts": {
-    "lint": "eslint . --ext .js,.jsx,.ts,.tsx,.json,.yml,.yaml,.md,.mdx --fix",
-    "lint:check": "eslint . --ext .js,.jsx,.ts,.tsx,.json,.yml,.yaml,.md,.mdx",
-    "format": "prettier --write \"**/*.{js,jsx,ts,tsx,json,jsonc,md,mdx,html,css,scss,less,yml,yaml,xml,svg}\"",
-    "format:check": "prettier --check \"**/*.{js,jsx,ts,tsx,json,jsonc,md,mdx,html,css,scss,less,yml,yaml,xml,svg}\"",
+    "lint": "npm run lint:js && npm run lint:python && npm run lint:java && npm run lint:cpp && npm run lint:sql",
+    "lint:check": "npm run lint:js:check && npm run lint:python:check && npm run lint:java:check && npm run lint:cpp:check && npm run lint:sql:check",
+    "lint:js": "eslint . --ext .js,.jsx,.ts,.tsx,.json,.yml,.yaml,.md,.mdx --fix",
+    "lint:js:check": "eslint . --ext .js,.jsx,.ts,.tsx,.json,.yml,.yaml,.md,.mdx",
+    "lint:python": "python -m flake8 . --extend-ignore=E203,W503 --max-line-length=100 || true",
+    "lint:python:check": "python -m flake8 . --extend-ignore=E203,W503 --max-line-length=100",
+    "lint:java": "if [ -f checkstyle.xml ]; then java -jar checkstyle.jar -c checkstyle.xml **/*.java || true; fi",
+    "lint:java:check": "if [ -f checkstyle.xml ]; then java -jar checkstyle.jar -c checkstyle.xml **/*.java; fi",
+    "lint:cpp": "if command -v clang-tidy >/dev/null 2>&1; then find . -name '*.cpp' -o -name '*.hpp' -o -name '*.c' -o -name '*.h' | xargs clang-tidy --checks='*' || true; fi",
+    "lint:cpp:check": "if command -v clang-tidy >/dev/null 2>&1; then find . -name '*.cpp' -o -name '*.hpp' -o -name '*.c' -o -name '*.h' | xargs clang-tidy --checks='*'; fi",
+    "lint:sql": "if command -v sqlfluff >/dev/null 2>&1; then sqlfluff lint . --dialect=postgres || true; fi",
+    "lint:sql:check": "if command -v sqlfluff >/dev/null 2>&1; then sqlfluff lint . --dialect=postgres; fi",
+    "format": "npm run format:js && npm run format:python && npm run format:java && npm run format:cpp && npm run format:sql",
+    "format:check": "npm run format:js:check && npm run format:python:check && npm run format:java:check && npm run format:cpp:check && npm run format:sql:check",
+    "format:js": "prettier --write \"**/*.{js,jsx,ts,tsx,json,jsonc,md,mdx,html,css,scss,less,yml,yaml,xml,svg}\"",
+    "format:js:check": "prettier --check \"**/*.{js,jsx,ts,tsx,json,jsonc,md,mdx,html,css,scss,less,yml,yaml,xml,svg}\"",
+    "format:python": "if command -v black >/dev/null 2>&1; then black . --line-length=100 --target-version=py38; fi && if command -v isort >/dev/null 2>&1; then isort . --profile=black --line-length=100; fi",
+    "format:python:check": "if command -v black >/dev/null 2>&1; then black . --line-length=100 --target-version=py38 --check; fi && if command -v isort >/dev/null 2>&1; then isort . --profile=black --line-length=100 --check-only; fi",
+    "format:java": "if command -v google-java-format >/dev/null 2>&1; then find . -name '*.java' | xargs google-java-format --replace; fi",
+    "format:java:check": "if command -v google-java-format >/dev/null 2>&1; then find . -name '*.java' | xargs google-java-format --dry-run --set-exit-if-changed; fi",
+    "format:cpp": "if command -v clang-format >/dev/null 2>&1; then find . -name '*.cpp' -o -name '*.hpp' -o -name '*.c' -o -name '*.h' | xargs clang-format -i --style=Google; fi",
+    "format:cpp:check": "if command -v clang-format >/dev/null 2>&1; then find . -name '*.cpp' -o -name '*.hpp' -o -name '*.c' -o -name '*.h' | xargs clang-format --dry-run --Werror --style=Google; fi",
+    "format:sql": "if command -v sqlfluff >/dev/null 2>&1; then sqlfluff format . --dialect=postgres; fi",
+    "format:sql:check": "if command -v sqlfluff >/dev/null 2>&1; then sqlfluff format . --dialect=postgres --check; fi",
     "type-check": "tsc --noEmit",
     "test": "jest",
     "test:watch": "jest --watch",
@@ -49,6 +69,20 @@
     ],
     "*.{json,jsonc,md,mdx,html,css,scss,less,yml,yaml}": [
       "prettier --write"
+    ],
+    "*.py": [
+      "python -m flake8 --extend-ignore=E203,W503 --max-line-length=100",
+      "black --line-length=100 --target-version=py38",
+      "isort --profile=black --line-length=100"
+    ],
+    "*.java": [
+      "google-java-format --replace"
+    ],
+    "*.{cpp,hpp,c,h}": [
+      "clang-format -i --style=Google"
+    ],
+    "*.sql": [
+      "sqlfluff format --dialect=postgres"
     ]
   },
   "engines": {

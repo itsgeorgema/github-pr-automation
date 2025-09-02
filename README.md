@@ -1,30 +1,37 @@
 # GitHub PR Automation Suite
 
-A comprehensive, easy-to-configure GitHub PR automation system for Typescript/Javascript projects with linting, formatting, security scanning, and AI-powered code reviews via an MCP server.
+A comprehensive, plug-and-play, multi-language GitHub PR automation system supporting JavaScript/TypeScript, Python, Java, C++, and SQL with intelligent linting, formatting, security scanning, and AI-powered code reviews via an MCP server.
 
 ## Features
 
-- **Comprehensive Linting**: ESLint with support for TypeScript, React, Next.js, YAML, JSON, and Markdown
-- **Universal Formatting**: Prettier with file-type specific configurations
-- **Security Scanning**: Automated security audits and dependency reviews
-- **AI Code Reviews**: Intelligent code analysis using Claude or GPT-4 via MCP server
-- **Performance Optimized**: Caching, parallel jobs, and efficient workflows
-- **Highly Configurable**: Easy customization for different project types
-- **Detailed Reporting**: Comprehensive analysis summaries and actionable feedback
+- **Multi-Language Support**: JavaScript/TypeScript, Python, Java, C++, and SQL
+- **Comprehensive Linting**: ESLint, Flake8, Checkstyle, Clang-Tidy, SQLFluff with framework-specific rules
+- **Universal Formatting**: Prettier, Black+isort, Google Java Format, Clang-Format, SQLFluff
+- **Security Scanning**: Automated security audits, dependency reviews, and vulnerability scanning
+- **AI Code Reviews**: Intelligent multi-language code analysis using Claude or GPT-4 via MCP server
+- **Performance Optimized**: Intelligent language detection, caching, parallel jobs, and efficient workflows
+- **Zero Configuration**: Automatic tool detection with graceful degradation
+- **Detailed Reporting**: Comprehensive analysis summaries and actionable feedback across all languages
 
 ## Architecture
 
 ```mermaid
-graph LR
+graph TD
     A[PR Created] --> B[GitHub Actions]
-    B --> C[Lint & Format]
-    B --> D[Security Scan]
-    B --> E[Type Check]
-    C --> F[MCP Server]
-    D --> F
-    E --> F
-    F --> G[AI Analysis]
-    G --> H[PR Comment]
+    B --> C[Language Detection]
+    C --> D[Multi-Language Pipeline]
+    D --> E[JS/TS: ESLint + Prettier]
+    D --> F[Python: Flake8 + Black + Security]
+    D --> G[Java: Checkstyle + Google Format]
+    D --> H[C++: Clang-Tidy + Clang-Format]
+    D --> I[SQL: SQLFluff]
+    E --> J[MCP Server]
+    F --> J
+    G --> J
+    H --> J
+    I --> J
+    J --> K[AI Multi-Language Analysis]
+    K --> L[PR Comment]
 ```
 
 ## Quick Start
@@ -39,12 +46,14 @@ npm install
 
 ### 2. Configure for Your Project
 
-The system works out-of-the-box for most TypeScript/JavaScript projects. For customization:
+The system works out-of-the-box for multi-language projects. It automatically detects and processes:
 
-- **ESLint**: Modify `.eslintrc.yml`
-- **Prettier**: Update `.prettierrc`
-- **TypeScript**: Adjust `tsconfig.json`
-- **Workflow**: Edit `.github/workflows/pr-reviewer.yaml`
+- **JavaScript/TypeScript**: `.eslintrc.yml`, `.prettierrc`, `tsconfig.json`
+- **Python**: `.flake8`, `pyproject.toml` (Black, isort, MyPy)
+- **Java**: `checkstyle.xml` (Google Style Guide)
+- **C++**: `.clang-format`, `.clang-tidy` (Google Style)
+- **SQL**: `.sqlfluff` (PostgreSQL dialect)
+- **Workflow**: `.github/workflows/pr-reviewer.yaml`
 
 ### 3. Set Up AI Reviews (Optional)
 
@@ -65,15 +74,22 @@ MCP_SERVER_URL=https://your-server.com  # Your MCP server URL
 ```
 github-pr-automation/
 ├── .github/workflows/
-│   └── pr-reviewer.yaml          # Main workflow
-├── .eslintrc.yml                 # ESLint configuration
-├── .prettierrc                   # Prettier configuration
+│   └── pr-reviewer.yaml          # Multi-language workflow
+├── .eslintrc.yml                 # JavaScript/TypeScript linting
+├── .prettierrc                   # JavaScript/TypeScript formatting
 ├── tsconfig.json                 # TypeScript configuration
+├── .flake8                       # Python linting (Flake8)
+├── pyproject.toml                # Python formatting (Black, isort, MyPy)
+├── checkstyle.xml                # Java linting (Google Style)
+├── .clang-format                 # C++ formatting (Google Style)
+├── .clang-tidy                   # C++ linting (comprehensive)
+├── .sqlfluff                     # SQL linting and formatting
 ├── package.json                  # Dependencies and scripts
-├── .gitignore                    # Git ignore rules
+├── .gitignore                    # Multi-language ignore rules
 ├── .eslintignore                 # ESLint ignore rules
 ├── .prettierignore               # Prettier ignore rules
 ├── MCP_SETUP_GUIDE.md           # AI setup instructions
+├── MULTI_LANGUAGE_SETUP.md      # Multi-language configuration guide
 └── README.md                     # This file
 ```
 
@@ -85,7 +101,10 @@ github-pr-automation/
 |----------|------------|-------|
 | **JavaScript** | `.js`, `.jsx` | ESLint, Prettier |
 | **TypeScript** | `.ts`, `.tsx` | ESLint, Prettier, TSC |
-| **React/Next.js** | `.jsx`, `.tsx` | ESLint (React rules) |
+| **Python** | `.py` | Flake8, Black, isort, MyPy, Bandit, Safety |
+| **Java** | `.java` | Checkstyle, Google Java Format |
+| **C/C++** | `.c`, `.cpp`, `.h`, `.hpp` | Clang-Tidy, Clang-Format |
+| **SQL** | `.sql` | SQLFluff (lint + format) |
 | **Styles** | `.css`, `.scss`, `.less` | Prettier |
 | **Data** | `.json`, `.jsonc`, `.yaml`, `.yml` | ESLint, Prettier |
 | **Docs** | `.md`, `.mdx` | ESLint, Prettier |
@@ -93,12 +112,14 @@ github-pr-automation/
 
 ### Framework Support
 
-- **React** - Full support with hooks and JSX rules
-- **Next.js** - Optimized rules and configurations
+- **React/Next.js** - Full support with hooks, JSX rules, and optimized configurations
 - **TypeScript** - Strict type checking and modern features
 - **Node.js** - Server-side JavaScript support
-- **Jest/Vitest** - Testing framework integration
-- **Cypress** - E2E testing support
+- **Python Frameworks** - Django, Flask, FastAPI compatible
+- **Java Frameworks** - Spring Boot, Maven, Gradle support
+- **C++ Standards** - C++11/14/17/20 support with modern best practices
+- **SQL Dialects** - PostgreSQL, MySQL, SQLite, and more
+- **Testing** - Jest/Vitest, pytest, JUnit, Google Test integration
 
 ### Customization Examples
 
@@ -129,10 +150,15 @@ overrides:
 
 | Script | Description |
 |--------|-------------|
-| `npm run lint` | Run ESLint with auto-fix |
-| `npm run lint:check` | Check linting without fixing |
-| `npm run format` | Format all files with Prettier |
-| `npm run format:check` | Check formatting without fixing |
+| `npm run lint` | Run linting for all detected languages |
+| `npm run lint:check` | Check linting without fixing for all languages |
+| `npm run lint:js` | JavaScript/TypeScript linting only |
+| `npm run lint:python` | Python linting (Flake8) only |
+| `npm run lint:java` | Java linting (Checkstyle) only |
+| `npm run lint:cpp` | C++ linting (Clang-Tidy) only |
+| `npm run lint:sql` | SQL linting (SQLFluff) only |
+| `npm run format` | Format all files in all detected languages |
+| `npm run format:check` | Check formatting without fixing for all languages |
 | `npm run type-check` | Run TypeScript type checking |
 | `npm run validate` | Run all checks (lint + format + type) |
 | `npm run test` | Run tests |
@@ -141,62 +167,81 @@ overrides:
 
 ### Jobs Overview
 
-1. **Setup** - Install dependencies with caching
-2. **Lint & Format** - Code quality checks with auto-fixing
-3. **Security Scan** - Vulnerability and dependency analysis
-4. **AI Review** - Intelligent code analysis (optional)
-5. **Summary** - Comprehensive results overview
+1. **Setup** - Install multi-language runtimes and tools with caching
+2. **Lint & Format** - Multi-language code quality checks with auto-fixing
+3. **Security Scan** - Vulnerability and dependency analysis (Python, Node.js)
+4. **AI Review** - Intelligent multi-language code analysis (optional)
+5. **Summary** - Comprehensive results overview across all languages
 
 ### Auto-fixing Behavior
 
 The workflow automatically:
-- Fixes ESLint issues where possible
-- Formats code with Prettier
-- Commits changes back to the PR
-- Runs final validation
+- Detects languages present in the repository
+- Fixes linting issues where possible (ESLint, Black, Google Java Format, Clang-Format, SQLFluff)
+- Formats code consistently across all languages
+- Runs security scans (Python: Bandit + Safety, Node.js: npm audit)
+- Commits changes back to the PR with descriptive messages
+- Runs final validation across all languages
 
 ### Security Features
 
-- npm audit for vulnerability scanning
-- CodeQL analysis for security issues
-- Dependency review for supply chain security
-- Permission-based access control
+- **Multi-language vulnerability scanning**: npm audit (Node.js), Bandit (Python), Safety (Python)
+- **CodeQL analysis**: Security issues detection across languages
+- **Dependency review**: Supply chain security for all package managers
+- **Permission-based access control**: Minimal required permissions per job
+- **Secrets management**: Zero hardcoded secrets across all configurations
 
 ## AI Code Reviews
 
-The AI reviewer provides:
+The AI reviewer provides language-specific analysis:
 
-- **Code Quality Analysis** - Best practices and patterns
-- **Security Review** - Potential vulnerabilities
-- **Performance Insights** - Optimization opportunities  
-- **Style Consistency** - Adherence to project standards
-- **Bug Detection** - Logic errors and edge cases
-- **Documentation** - Missing or unclear documentation
+- **Code Quality Analysis** - Best practices and patterns for each language
+- **Security Review** - Language-specific vulnerability detection
+- **Performance Insights** - Optimization opportunities per language
+- **Style Consistency** - Adherence to language-specific standards (Google Style, PEP 8, etc.)
+- **Bug Detection** - Logic errors and edge cases across all languages
+- **Documentation** - Missing or unclear documentation (JSDoc, docstrings, Javadoc)
+- **Framework Best Practices** - React patterns, Django security, Spring Boot optimizations
 
 ### Sample AI Review
 
 ```markdown
 ## AI Code Review
 
-**PR Summary:** Add user authentication system
+**PR Summary:** Add multi-language user authentication system
 **Author:** @developer
-**Files Changed:** 8
+**Files Changed:** 12 (Python backend, React frontend, SQL migrations, Java services)
 
 ### Analysis Results:
 
-**Code Quality:** Excellent adherence to TypeScript best practices
-**Security:** Consider rate limiting for login endpoint
-**Performance:** Efficient database queries implemented
-**Testing:** Missing unit tests for auth middleware
+**Python Backend (FastAPI):**
+- Code Quality: Excellent PEP 8 compliance and type hints usage
+- Security: Consider rate limiting and input validation improvements
+- Performance: Efficient async/await patterns implemented
+
+**React Frontend (TypeScript):**
+- Code Quality: Great TypeScript usage and React best practices
+- Security: Implement proper CSRF protection
+- Performance: Consider memoization for expensive computations
+
+**SQL Migrations:**
+- Code Quality: Well-structured schema changes
+- Security: Proper indexing and constraints applied
+- Performance: Efficient migration strategy
+
+**Java Microservices:**
+- Code Quality: Good adherence to Google Java Style
+- Security: Add input validation annotations
+- Performance: Consider connection pooling optimizations
 
 ### Specific Recommendations:
 
-1. **Security Enhancement**: Add rate limiting to prevent brute force attacks
-2. **Error Handling**: Implement proper error boundaries in React components
-3. **Type Safety**: Consider using branded types for user IDs
-4. **Documentation**: Add JSDoc comments for public API methods
+1. **Multi-language Security**: Implement consistent auth across all services
+2. **Error Handling**: Standardize error responses across Python/Java APIs
+3. **Type Safety**: Use branded types in TypeScript and proper generics in Java
+4. **Documentation**: Add comprehensive API documentation for all endpoints
 
-**Overall Score:** 8/10 - Great work! Address the security and testing concerns before merging.
+**Overall Score:** 9/10 - Excellent multi-language implementation! Minor security enhancements recommended.
 ```
 
 ## Customization Guide
@@ -340,4 +385,8 @@ MIT License - see [LICENSE](LICENSE) file for details.
 
 **To automate your PRs:**
 
-Start by creating a pull request to test the system, or dive into the [MCP Setup Guide](./MCP_SETUP_GUIDE.md) for AI-powered reviews!
+1. **Quick Start**: Create a pull request to test the multi-language system
+2. **AI Reviews**: Follow the [MCP Setup Guide](./MCP_SETUP_GUIDE.md) for intelligent code reviews
+3. **Multi-Language Setup**: Check the [Multi-Language Setup Guide](./MULTI_LANGUAGE_SETUP.md) for advanced configuration
+
+The system automatically detects your project's languages and applies the appropriate tools!

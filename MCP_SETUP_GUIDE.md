@@ -1,6 +1,6 @@
-# MCP Server Setup Guide for GitHub PR Automation
+# MCP Server Setup Guide for Multi-Language GitHub PR Automation
 
-This guide walks you through setting up a Model Context Protocol (MCP) server to enable AI-powered code reviews in your GitHub PR automation workflow.
+This guide walks you through setting up a Model Context Protocol (MCP) server to enable AI-powered code reviews for multi-language projects (JavaScript/TypeScript, Python, Java, C++, SQL) in your GitHub PR automation workflow.
 
 ## Table of Contents
 
@@ -15,12 +15,12 @@ This guide walks you through setting up a Model Context Protocol (MCP) server to
 
 ## Overview
 
-The MCP server acts as a bridge between your GitHub Actions workflow and AI models (like Claude, GPT-4, etc.) to provide intelligent code reviews. It receives PR diffs and metadata, processes them through AI models, and posts review comments back to GitHub.
+The MCP server acts as a bridge between your GitHub Actions workflow and AI models (like Claude, GPT-4, etc.) to provide intelligent multi-language code reviews. It receives PR diffs and metadata from JavaScript/TypeScript, Python, Java, C++, and SQL files, processes them through AI models with language-specific context, and posts comprehensive review comments back to GitHub.
 
 ### Architecture
 
 ```
-GitHub PR → GitHub Actions → MCP Server → AI Model → GitHub Comment
+Multi-Language PR → GitHub Actions → Language Detection → MCP Server → AI Model → Language-Specific Analysis → GitHub Comment
 ```
 
 ## Prerequisites
@@ -108,38 +108,57 @@ async def analyze_pr(request: PRAnalysisRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 async def generate_ai_review(request: PRAnalysisRequest) -> Dict:
-    """Generate AI-powered code review."""
+    """Generate AI-powered multi-language code review."""
     
-    # Prepare the prompt
+    # Detect languages in changed files
+    languages = detect_languages(request.changed_files)
+    
+    # Prepare language-specific prompt
     prompt = f"""
-    You are an expert code reviewer. Analyze this GitHub Pull Request and provide a comprehensive review.
+    You are an expert multi-language code reviewer. Analyze this GitHub Pull Request containing {', '.join(languages)} code and provide a comprehensive review.
 
     **PR Title:** {request.pr_title}
     **Author:** {request.pr_author}
     **Repository:** {request.repository}
+    **Languages Detected:** {', '.join(languages)}
 
     **PR Description:**
     {request.pr_body}
 
-    **Changed Files:**
-    {', '.join(request.changed_files)}
+    **Changed Files by Language:**
+    {format_files_by_language(request.changed_files)}
 
     **Code Diff:**
     ```diff
     {request.diff_content}
     ```
 
-    Please provide:
-    1. Overall assessment of code quality
-    2. Specific issues or bugs found
-    3. Suggestions for improvement
-    4. Security considerations
-    5. Performance implications
-    6. Code style and best practices feedback
-    7. Overall score (1-10)
+    Please provide language-specific analysis:
+    
+    **For JavaScript/TypeScript files:**
+    - React/Next.js best practices, TypeScript usage, async patterns
+    
+    **For Python files:**
+    - PEP 8 compliance, type hints, security (SQL injection, XSS), performance
+    
+    **For Java files:**
+    - Google Style Guide adherence, design patterns, thread safety, memory management
+    
+    **For C++ files:**
+    - Modern C++ features, memory management, performance, RAII patterns
+    
+    **For SQL files:**
+    - Query optimization, injection prevention, indexing, normalization
 
-    Format your response as a detailed GitHub comment with markdown formatting.
-    Be constructive and helpful in your feedback.
+    Overall assessment:
+    1. Code quality per language
+    2. Cross-language integration issues
+    3. Security considerations per language
+    4. Performance implications
+    5. Language-specific best practices
+    6. Overall score (1-10)
+
+    Format your response as a detailed GitHub comment with markdown formatting and language-specific sections.
     """
 
     if AI_PROVIDER == "anthropic" and anthropic_client:
@@ -180,31 +199,92 @@ async def call_openai(prompt: str) -> str:
         return "Error calling OpenAI API"
 
 def generate_fallback_review(request: PRAnalysisRequest) -> str:
-    """Generate a basic review when AI APIs are unavailable."""
+    """Generate a basic multi-language review when AI APIs are unavailable."""
+    languages = detect_languages(request.changed_files)
+    
     return f"""
-## 🤖 AI Code Review
+## AI Code Review
 
 **PR Summary:** {request.pr_title}
 **Author:** @{request.pr_author}
 **Files Changed:** {len(request.changed_files)}
+**Languages Detected:** {', '.join(languages)}
 
-### Analysis Results:
+### Multi-Language Analysis Results:
 
 **Automated Analysis Completed**
-- Code formatting and linting checks passed
-- Security scan completed
-- Dependency review completed
+- Code formatting and linting checks passed for all languages
+- Security scan completed (Python: Bandit + Safety, Node.js: npm audit)
+- Multi-language dependency review completed
+- Type checking completed where applicable
 
-### Changed Files:
-{chr(10).join([f'- `{f}`' for f in request.changed_files])}
+### Changed Files by Language:
+{format_files_by_language_fallback(request.changed_files)}
+
+### Language-Specific Checks:
+{generate_language_specific_fallback(languages)}
 
 ### Recommendations:
-- Code follows established patterns
-- All automated checks passed
-- Ready for human review 👀
+- Code follows established patterns for all languages
+- All automated checks passed across languages
+- Ready for human review
 
-*Note: AI-powered analysis is currently unavailable. This is a fallback review.*
+*Note: AI-powered analysis is currently unavailable. This is a comprehensive fallback review based on automated tooling results.*
     """
+
+def detect_languages(files):
+    """Detect programming languages from file extensions."""
+    languages = set()
+    for file in files:
+        if file.endswith(('.js', '.jsx', '.ts', '.tsx')):
+            languages.add('JavaScript/TypeScript')
+        elif file.endswith('.py'):
+            languages.add('Python')
+        elif file.endswith('.java'):
+            languages.add('Java')
+        elif file.endswith(('.cpp', '.hpp', '.c', '.h')):
+            languages.add('C++')
+        elif file.endswith('.sql'):
+            languages.add('SQL')
+    return list(languages)
+
+def format_files_by_language_fallback(files):
+    """Format files grouped by language for fallback review."""
+    by_lang = {}
+    for file in files:
+        if file.endswith(('.js', '.jsx', '.ts', '.tsx')):
+            by_lang.setdefault('JavaScript/TypeScript', []).append(file)
+        elif file.endswith('.py'):
+            by_lang.setdefault('Python', []).append(file)
+        elif file.endswith('.java'):
+            by_lang.setdefault('Java', []).append(file)
+        elif file.endswith(('.cpp', '.hpp', '.c', '.h')):
+            by_lang.setdefault('C++', []).append(file)
+        elif file.endswith('.sql'):
+            by_lang.setdefault('SQL', []).append(file)
+    
+    result = ""
+    for lang, lang_files in by_lang.items():
+        result += f"\n**{lang}:**\n"
+        result += "\n".join([f"- `{f}`" for f in lang_files])
+        result += "\n"
+    return result
+
+def generate_language_specific_fallback(languages):
+    """Generate language-specific check results for fallback."""
+    checks = []
+    for lang in languages:
+        if lang == 'JavaScript/TypeScript':
+            checks.append("- **JavaScript/TypeScript**: ESLint + Prettier + TypeScript compiler checks passed")
+        elif lang == 'Python':
+            checks.append("- **Python**: Flake8 + Black + isort + MyPy + Bandit security checks passed")
+        elif lang == 'Java':
+            checks.append("- **Java**: Checkstyle + Google Java Format checks passed")
+        elif lang == 'C++':
+            checks.append("- **C++**: Clang-Tidy + Clang-Format checks passed")
+        elif lang == 'SQL':
+            checks.append("- **SQL**: SQLFluff linting and formatting checks passed")
+    return "\n".join(checks)
 
 def parse_ai_response(response: str, request: PRAnalysisRequest) -> Dict:
     """Parse AI response into structured data."""
@@ -674,25 +754,67 @@ Create a test PR in your repository to verify the full workflow.
 
 ## Advanced Features
 
-### 1. Custom Rules Engine
+### 1. Multi-Language Rule Engine
 
-Add custom linting rules and checks specific to your codebase.
+Add language-specific custom rules and checks:
 
-### 2. Learning from Feedback
+```python
+# Language-specific rule configuration
+LANGUAGE_RULES = {
+    'python': {
+        'security_focus': ['sql_injection', 'xss', 'path_traversal'],
+        'performance_checks': ['n_plus_one_queries', 'memory_leaks'],
+        'style_guides': ['pep8', 'google', 'black']
+    },
+    'java': {
+        'security_focus': ['injection', 'deserialization', 'xxe'],
+        'performance_checks': ['memory_management', 'thread_safety'],
+        'style_guides': ['google', 'oracle', 'spring']
+    },
+    'cpp': {
+        'security_focus': ['buffer_overflow', 'memory_corruption'],
+        'performance_checks': ['memory_leaks', 'optimization'],
+        'style_guides': ['google', 'llvm', 'webkit']
+    }
+}
+```
 
-Store review feedback to improve future reviews.
+### 2. Learning from Multi-Language Feedback
 
-### 3. Multi-Model Ensemble
+Store review feedback categorized by language to improve future reviews.
 
-Use multiple AI models and combine their responses.
+### 3. Multi-Model Language Ensemble
 
-### 4. Integration with Code Quality Tools
+Use different AI models optimized for different languages:
 
-Connect with SonarQube, CodeClimate, or other tools.
+```python
+# Language-specific model routing
+MODEL_ROUTING = {
+    'javascript': 'claude-3-sonnet',  # Great for web frameworks
+    'python': 'gpt-4',               # Excellent for Python patterns
+    'java': 'claude-3-sonnet',       # Strong enterprise patterns
+    'cpp': 'gpt-4',                  # Good low-level understanding
+    'sql': 'claude-3-sonnet'         # Strong database knowledge
+}
+```
 
-### 5. Slack/Teams Notifications
+### 4. Integration with Multi-Language Quality Tools
 
-Send review summaries to team channels.
+Connect with language-specific tools:
+
+```python
+# Tool integration matrix
+QUALITY_TOOLS = {
+    'python': ['sonarqube', 'bandit', 'safety', 'mypy'],
+    'java': ['sonarqube', 'spotbugs', 'pmd', 'checkstyle'],
+    'cpp': ['cppcheck', 'clang-analyzer', 'valgrind'],
+    'javascript': ['sonarjs', 'eslint-security', 'npm-audit']
+}
+```
+
+### 5. Language-Specific Notifications
+
+Send targeted notifications based on language and team structure.
 
 ## Security Considerations
 

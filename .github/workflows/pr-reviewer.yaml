@@ -58,6 +58,23 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
 
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup C++ Tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-format clang-tidy
+
       - name: Restore node modules
         uses: actions/cache@v4
         with:
@@ -66,28 +83,68 @@ jobs:
           restore-keys: |
             ${{ env.CACHE_KEY_PREFIX }}-${{ runner.os }}-
 
-      - name: Install Dependencies
+      - name: Install Node Dependencies
         if: needs.setup.outputs.cache-hit != 'true'
         run: npm ci --prefer-offline --no-audit
+
+      - name: Install Python Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install flake8 black isort mypy bandit safety
+
+      - name: Install Java Tools
+        run: |
+          # Download Checkstyle
+          wget -q https://github.com/checkstyle/checkstyle/releases/download/checkstyle-10.12.5/checkstyle-10.12.5-all.jar -O checkstyle.jar
+          # Download Google Java Format
+          wget -q https://github.com/google/google-java-format/releases/download/v1.18.1/google-java-format-1.18.1-all-deps.jar -O google-java-format.jar
+          # Make executable script
+          echo '#!/bin/bash' > google-java-format
+          echo 'java -jar google-java-format.jar "$@"' >> google-java-format
+          chmod +x google-java-format
+          sudo mv google-java-format /usr/local/bin/
+
+      - name: Install SQL Tools
+        run: |
+          pip install sqlfluff
 
       - name: Run Type Check
         run: npm run type-check
         continue-on-error: true
 
-      - name: Run ESLint Check
-        run: npm run lint:check
+      - name: Run Multi-Language Lint Check
+        run: |
+          echo "🔍 Running linting checks for all languages..."
+          npm run lint:check
         continue-on-error: true
 
-      - name: Run Prettier Check
-        run: npm run format:check
+      - name: Run Multi-Language Format Check
+        run: |
+          echo "💅 Running format checks for all languages..."
+          npm run format:check
         continue-on-error: true
 
-      - name: Auto-fix ESLint issues
-        run: npm run lint
+      - name: Auto-fix All Languages
+        run: |
+          echo "🔧 Auto-fixing issues for all languages..."
+          npm run lint
         continue-on-error: true
 
-      - name: Auto-format with Prettier
-        run: npm run format
+      - name: Auto-format All Languages
+        run: |
+          echo "✨ Auto-formatting code for all languages..."
+          npm run format
+        continue-on-error: true
+
+      - name: Run Python Security Check
+        run: |
+          if find . -name "*.py" -type f | head -1 | grep -q .; then
+            echo "🔒 Running Python security checks..."
+            bandit -r . -f json -o bandit-report.json || true
+            safety check --json --output safety-report.json || true
+          else
+            echo "No Python files found, skipping security checks."
+          fi
         continue-on-error: true
 
       - name: Check for changes
@@ -105,7 +162,7 @@ jobs:
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
           git add .
-          git commit -m "Auto-fix: ESLint and Prettier formatting"
+          git commit -m "Auto-fix: Multi-language linting and formatting (JS/TS/Python/Java/C++/SQL)"
           git push
 
       - name: Run final validation

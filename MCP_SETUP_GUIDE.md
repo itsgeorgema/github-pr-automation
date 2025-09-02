@@ -34,580 +34,95 @@ Multi-Language PR → GitHub Actions → Language Detection → MCP Server → A
 
 ### Option 1: Python MCP Server
 
-#### 1. Create the MCP Server
+#### 1. Copy Server Files
 
-Create a new directory for your MCP server:
+Copy the Python MCP server files from the `mcp-servers/python/` directory:
 
 ```bash
-mkdir mcp-github-reviewer
+cp -r mcp-servers/python/ mcp-github-reviewer/
 cd mcp-github-reviewer
 ```
 
 #### 2. Install Dependencies
 
 ```bash
-pip install fastapi uvicorn httpx python-dotenv anthropic openai
+pip install -r requirements.txt
 ```
 
-#### 3. Create the Server (`main.py`)
+#### 3. Configure Environment
 
-```python
-import asyncio
-import json
-import os
-from typing import Dict, List, Optional
-from fastapi import FastAPI, HTTPException, Header
-from pydantic import BaseModel
-import httpx
-from anthropic import Anthropic
-import openai
-
-app = FastAPI(title="GitHub PR MCP Server", version="1.0.0")
-
-# Configuration
-GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
-ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-AI_PROVIDER = os.getenv("AI_PROVIDER", "anthropic")  # or "openai"
-
-# Initialize AI clients
-anthropic_client = Anthropic(api_key=ANTHROPIC_API_KEY) if ANTHROPIC_API_KEY else None
-openai.api_key = OPENAI_API_KEY if OPENAI_API_KEY else None
-
-class PRAnalysisRequest(BaseModel):
-    pr_number: int
-    pr_title: str
-    pr_body: str
-    pr_author: str
-    changed_files: List[str]
-    diff_content: str
-    repository: str
-    github_token: str
-
-class ReviewResponse(BaseModel):
-    review_comment: str
-    suggestions: List[str]
-    issues: List[str]
-    overall_score: int
-
-@app.post("/analyze-pr", response_model=ReviewResponse)
-async def analyze_pr(request: PRAnalysisRequest):
-    """Analyze a GitHub PR and generate an AI review."""
-    
-    try:
-        # Generate AI review
-        review_data = await generate_ai_review(request)
-        
-        # Post comment to GitHub (optional - can be done in GitHub Actions)
-        if request.github_token:
-            await post_github_comment(request, review_data["review_comment"])
-        
-        return ReviewResponse(**review_data)
-        
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-async def generate_ai_review(request: PRAnalysisRequest) -> Dict:
-    """Generate AI-powered multi-language code review."""
-    
-    # Detect languages in changed files
-    languages = detect_languages(request.changed_files)
-    
-    # Prepare language-specific prompt
-    prompt = f"""
-    You are an expert multi-language code reviewer. Analyze this GitHub Pull Request containing {', '.join(languages)} code and provide a comprehensive review.
-
-    **PR Title:** {request.pr_title}
-    **Author:** {request.pr_author}
-    **Repository:** {request.repository}
-    **Languages Detected:** {', '.join(languages)}
-
-    **PR Description:**
-    {request.pr_body}
-
-    **Changed Files by Language:**
-    {format_files_by_language(request.changed_files)}
-
-    **Code Diff:**
-    ```diff
-    {request.diff_content}
-    ```
-
-    Please provide language-specific analysis:
-    
-    **For JavaScript/TypeScript files:**
-    - React/Next.js best practices, TypeScript usage, async patterns
-    
-    **For Python files:**
-    - PEP 8 compliance, type hints, security (SQL injection, XSS), performance
-    
-    **For Java files:**
-    - Google Style Guide adherence, design patterns, thread safety, memory management
-    
-    **For C++ files:**
-    - Modern C++ features, memory management, performance, RAII patterns
-    
-    **For SQL files:**
-    - Query optimization, injection prevention, indexing, normalization
-
-    Overall assessment:
-    1. Code quality per language
-    2. Cross-language integration issues
-    3. Security considerations per language
-    4. Performance implications
-    5. Language-specific best practices
-    6. Overall score (1-10)
-
-    Format your response as a detailed GitHub comment with markdown formatting and language-specific sections.
-    """
-
-    if AI_PROVIDER == "anthropic" and anthropic_client:
-        response = await call_anthropic(prompt)
-    elif AI_PROVIDER == "openai" and OPENAI_API_KEY:
-        response = await call_openai(prompt)
-    else:
-        response = generate_fallback_review(request)
-
-    return parse_ai_response(response, request)
-
-async def call_anthropic(prompt: str) -> str:
-    """Call Anthropic Claude API."""
-    try:
-        message = anthropic_client.messages.create(
-            model="claude-3-sonnet-20240229",
-            max_tokens=4000,
-            temperature=0.1,
-            messages=[{"role": "user", "content": prompt}]
-        )
-        return message.content[0].text
-    except Exception as e:
-        print(f"Anthropic API error: {e}")
-        return "Error calling Anthropic API"
-
-async def call_openai(prompt: str) -> str:
-    """Call OpenAI GPT API."""
-    try:
-        response = openai.ChatCompletion.create(
-            model="gpt-4",
-            messages=[{"role": "user", "content": prompt}],
-            max_tokens=4000,
-            temperature=0.1
-        )
-        return response.choices[0].message.content
-    except Exception as e:
-        print(f"OpenAI API error: {e}")
-        return "Error calling OpenAI API"
-
-def generate_fallback_review(request: PRAnalysisRequest) -> str:
-    """Generate a basic multi-language review when AI APIs are unavailable."""
-    languages = detect_languages(request.changed_files)
-    
-    return f"""
-## AI Code Review
-
-**PR Summary:** {request.pr_title}
-**Author:** @{request.pr_author}
-**Files Changed:** {len(request.changed_files)}
-**Languages Detected:** {', '.join(languages)}
-
-### Multi-Language Analysis Results:
-
-**Automated Analysis Completed**
-- Code formatting and linting checks passed for all languages
-- Security scan completed (Python: Bandit + Safety, Node.js: npm audit)
-- Multi-language dependency review completed
-- Type checking completed where applicable
-
-### Changed Files by Language:
-{format_files_by_language_fallback(request.changed_files)}
-
-### Language-Specific Checks:
-{generate_language_specific_fallback(languages)}
-
-### Recommendations:
-- Code follows established patterns for all languages
-- All automated checks passed across languages
-- Ready for human review
-
-*Note: AI-powered analysis is currently unavailable. This is a comprehensive fallback review based on automated tooling results.*
-    """
-
-def detect_languages(files):
-    """Detect programming languages from file extensions."""
-    languages = set()
-    for file in files:
-        if file.endswith(('.js', '.jsx', '.ts', '.tsx')):
-            languages.add('JavaScript/TypeScript')
-        elif file.endswith('.py'):
-            languages.add('Python')
-        elif file.endswith('.java'):
-            languages.add('Java')
-        elif file.endswith(('.cpp', '.hpp', '.c', '.h')):
-            languages.add('C++')
-        elif file.endswith('.sql'):
-            languages.add('SQL')
-    return list(languages)
-
-def format_files_by_language_fallback(files):
-    """Format files grouped by language for fallback review."""
-    by_lang = {}
-    for file in files:
-        if file.endswith(('.js', '.jsx', '.ts', '.tsx')):
-            by_lang.setdefault('JavaScript/TypeScript', []).append(file)
-        elif file.endswith('.py'):
-            by_lang.setdefault('Python', []).append(file)
-        elif file.endswith('.java'):
-            by_lang.setdefault('Java', []).append(file)
-        elif file.endswith(('.cpp', '.hpp', '.c', '.h')):
-            by_lang.setdefault('C++', []).append(file)
-        elif file.endswith('.sql'):
-            by_lang.setdefault('SQL', []).append(file)
-    
-    result = ""
-    for lang, lang_files in by_lang.items():
-        result += f"\n**{lang}:**\n"
-        result += "\n".join([f"- `{f}`" for f in lang_files])
-        result += "\n"
-    return result
-
-def generate_language_specific_fallback(languages):
-    """Generate language-specific check results for fallback."""
-    checks = []
-    for lang in languages:
-        if lang == 'JavaScript/TypeScript':
-            checks.append("- **JavaScript/TypeScript**: ESLint + Prettier + TypeScript compiler checks passed")
-        elif lang == 'Python':
-            checks.append("- **Python**: Flake8 + Black + isort + MyPy + Bandit security checks passed")
-        elif lang == 'Java':
-            checks.append("- **Java**: Checkstyle + Google Java Format checks passed")
-        elif lang == 'C++':
-            checks.append("- **C++**: Clang-Tidy + Clang-Format checks passed")
-        elif lang == 'SQL':
-            checks.append("- **SQL**: SQLFluff linting and formatting checks passed")
-    return "\n".join(checks)
-
-def parse_ai_response(response: str, request: PRAnalysisRequest) -> Dict:
-    """Parse AI response into structured data."""
-    
-    # Extract suggestions and issues (simplified parsing)
-    suggestions = []
-    issues = []
-    overall_score = 8  # Default score
-    
-    # This is a simplified parser - you might want to use more sophisticated parsing
-    lines = response.split('\n')
-    current_section = None
-    
-    for line in lines:
-        line = line.strip()
-        if 'suggestion' in line.lower():
-            current_section = 'suggestions'
-        elif 'issue' in line.lower() or 'problem' in line.lower():
-            current_section = 'issues'
-        elif line.startswith('- ') and current_section:
-            if current_section == 'suggestions':
-                suggestions.append(line[2:])
-            elif current_section == 'issues':
-                issues.append(line[2:])
-    
-    return {
-        "review_comment": response,
-        "suggestions": suggestions,
-        "issues": issues,
-        "overall_score": overall_score
-    }
-
-async def post_github_comment(request: PRAnalysisRequest, comment: str):
-    """Post review comment to GitHub PR."""
-    
-    url = f"https://api.github.com/repos/{request.repository}/issues/{request.pr_number}/comments"
-    headers = {
-        "Authorization": f"token {request.github_token}",
-        "Accept": "application/vnd.github.v3+json"
-    }
-    
-    data = {"body": comment}
-    
-    async with httpx.AsyncClient() as client:
-        response = await client.post(url, headers=headers, json=data)
-        response.raise_for_status()
-
-@app.get("/health")
-async def health_check():
-    """Health check endpoint."""
-    return {
-        "status": "healthy",
-        "ai_provider": AI_PROVIDER,
-        "anthropic_available": bool(ANTHROPIC_API_KEY),
-        "openai_available": bool(OPENAI_API_KEY)
-    }
-
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+```bash
+cp env.example .env
+# Edit .env with your API keys
 ```
 
-#### 4. Create Environment Configuration (`.env`)
+#### 4. Run the Server
 
-```env
-# AI Provider Configuration
-AI_PROVIDER=anthropic  # or "openai"
-ANTHROPIC_API_KEY=your_anthropic_api_key_here
-OPENAI_API_KEY=your_openai_api_key_here
-
-# GitHub Configuration
-GITHUB_TOKEN=your_github_token_here
-
-# Server Configuration
-PORT=8000
-HOST=0.0.0.0
+```bash
+python main.py
 ```
 
-#### 5. Create Requirements File (`requirements.txt`)
+The server files are located in `mcp-servers/python/` and include:
+- [`main.py`](mcp-servers/python/main.py) - Main server application
+- [`requirements.txt`](mcp-servers/python/requirements.txt) - Python dependencies
+- [`Dockerfile`](mcp-servers/python/Dockerfile) - Docker configuration
+- [`docker-compose.yml`](mcp-servers/python/docker-compose.yml) - Docker Compose configuration
+- [`env.example`](mcp-servers/python/env.example) - Environment variables template
+- [`.gitignore`](mcp-servers/python/.gitignore) - Git ignore file
+- [`README.md`](mcp-servers/python/README.md) - Quick start guide
 
-```txt
-fastapi==0.104.1
-uvicorn[standard]==0.24.0
-httpx==0.25.2
-python-dotenv==1.0.0
-anthropic==0.8.1
-openai==1.3.8
-pydantic==2.5.0
-```
+
+
+
 
 ### Option 2: Node.js MCP Server
 
-#### 1. Initialize Node.js Project
+#### 1. Copy Server Files
+
+Copy the Node.js MCP server files from the `mcp-servers/node/` directory:
 
 ```bash
-mkdir mcp-github-reviewer-js
+cp -r mcp-servers/node/ mcp-github-reviewer-js/
 cd mcp-github-reviewer-js
-npm init -y
 ```
 
 #### 2. Install Dependencies
 
 ```bash
-npm install express axios dotenv @anthropic-ai/sdk openai cors helmet
-npm install -D @types/node @types/express typescript ts-node nodemon
+npm install
 ```
 
-#### 3. Create the Server (`src/server.ts`)
+#### 3. Configure Environment
 
-```typescript
-import express from 'express';
-import cors from 'cors';
-import helmet from 'helmet';
-import dotenv from 'dotenv';
-import { Anthropic } from '@anthropic-ai/sdk';
-import OpenAI from 'openai';
-import axios from 'axios';
-
-dotenv.config();
-
-const app = express();
-const PORT = process.env.PORT || 8000;
-
-// Middleware
-app.use(helmet());
-app.use(cors());
-app.use(express.json({ limit: '10mb' }));
-
-// AI Clients
-const anthropic = process.env.ANTHROPIC_API_KEY 
-  ? new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
-  : null;
-
-const openai = process.env.OPENAI_API_KEY
-  ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
-  : null;
-
-interface PRAnalysisRequest {
-  pr_number: number;
-  pr_title: string;
-  pr_body: string;
-  pr_author: string;
-  changed_files: string[];
-  diff_content: string;
-  repository: string;
-  github_token: string;
-}
-
-interface ReviewResponse {
-  review_comment: string;
-  suggestions: string[];
-  issues: string[];
-  overall_score: number;
-}
-
-app.post('/analyze-pr', async (req: express.Request, res: express.Response) => {
-  try {
-    const request: PRAnalysisRequest = req.body;
-    
-    // Generate AI review
-    const reviewData = await generateAIReview(request);
-    
-    // Optionally post to GitHub
-    if (request.github_token) {
-      await postGitHubComment(request, reviewData.review_comment);
-    }
-    
-    res.json(reviewData);
-  } catch (error) {
-    console.error('Error analyzing PR:', error);
-    res.status(500).json({ error: 'Failed to analyze PR' });
-  }
-});
-
-async function generateAIReview(request: PRAnalysisRequest): Promise<ReviewResponse> {
-  const prompt = `
-You are an expert code reviewer. Analyze this GitHub Pull Request and provide a comprehensive review.
-
-**PR Title:** ${request.pr_title}
-**Author:** ${request.pr_author}
-**Repository:** ${request.repository}
-
-**PR Description:**
-${request.pr_body}
-
-**Changed Files:**
-${request.changed_files.join(', ')}
-
-**Code Diff:**
-\`\`\`diff
-${request.diff_content}
-\`\`\`
-
-Please provide:
-1. Overall assessment of code quality
-2. Specific issues or bugs found
-3. Suggestions for improvement
-4. Security considerations
-5. Performance implications
-6. Code style and best practices feedback
-7. Overall score (1-10)
-
-Format your response as a detailed GitHub comment with markdown formatting.
-Be constructive and helpful in your feedback.
-  `;
-
-  let response: string;
-  
-  if (anthropic && process.env.AI_PROVIDER === 'anthropic') {
-    response = await callAnthropic(prompt);
-  } else if (openai && process.env.AI_PROVIDER === 'openai') {
-    response = await callOpenAI(prompt);
-  } else {
-    response = generateFallbackReview(request);
-  }
-
-  return parseAIResponse(response, request);
-}
-
-async function callAnthropic(prompt: string): Promise<string> {
-  try {
-    const message = await anthropic!.messages.create({
-      model: 'claude-3-sonnet-20240229',
-      max_tokens: 4000,
-      temperature: 0.1,
-      messages: [{ role: 'user', content: prompt }],
-    });
-    
-    return message.content[0].type === 'text' ? message.content[0].text : '';
-  } catch (error) {
-    console.error('Anthropic API error:', error);
-    return 'Error calling Anthropic API';
-  }
-}
-
-async function callOpenAI(prompt: string): Promise<string> {
-  try {
-    const completion = await openai!.chat.completions.create({
-      model: 'gpt-4',
-      messages: [{ role: 'user', content: prompt }],
-      max_tokens: 4000,
-      temperature: 0.1,
-    });
-    
-    return completion.choices[0].message.content || '';
-  } catch (error) {
-    console.error('OpenAI API error:', error);
-    return 'Error calling OpenAI API';
-  }
-}
-
-function generateFallbackReview(request: PRAnalysisRequest): string {
-  return `
-## 🤖 AI Code Review
-
-**PR Summary:** ${request.pr_title}
-**Author:** @${request.pr_author}
-**Files Changed:** ${request.changed_files.length}
-
-### Analysis Results:
-
-**Automated Analysis Completed**
-- Code formatting and linting checks passed
-- Security scan completed
-- Dependency review completed
-
-### Changed Files:
-${request.changed_files.map(f => `- \`${f}\``).join('\n')}
-
-### Recommendations:
-- Code follows established patterns
-- All automated checks passed
-- Ready for human review
-
-*Note: AI-powered analysis is currently unavailable. This is a fallback review.*
-  `;
-}
-
-function parseAIResponse(response: string, request: PRAnalysisRequest): ReviewResponse {
-  // Simplified parsing - enhance as needed
-  const suggestions: string[] = [];
-  const issues: string[] = [];
-  const overall_score = 8;
-
-  return {
-    review_comment: response,
-    suggestions,
-    issues,
-    overall_score,
-  };
-}
-
-async function postGitHubComment(request: PRAnalysisRequest, comment: string) {
-  const url = `https://api.github.com/repos/${request.repository}/issues/${request.pr_number}/comments`;
-  
-  try {
-    await axios.post(url, 
-      { body: comment },
-      {
-        headers: {
-          'Authorization': `token ${request.github_token}`,
-          'Accept': 'application/vnd.github.v3+json',
-        },
-      }
-    );
-  } catch (error) {
-    console.error('Error posting GitHub comment:', error);
-  }
-}
-
-app.get('/health', (req, res) => {
-  res.json({
-    status: 'healthy',
-    ai_provider: process.env.AI_PROVIDER,
-    anthropic_available: !!process.env.ANTHROPIC_API_KEY,
-    openai_available: !!process.env.OPENAI_API_KEY,
-  });
-});
-
-app.listen(PORT, () => {
-  console.log(`MCP Server running on port ${PORT}`);
-});
+```bash
+cp env.example .env
+# Edit .env with your API keys
 ```
+
+#### 4. Build and Run
+
+```bash
+npm run build
+npm start
+```
+
+#### 5. Development Mode
+
+```bash
+npm run dev
+```
+
+The server files are located in `mcp-servers/node/` and include:
+- [`src/server.ts`](mcp-servers/node/src/server.ts) - Main server application
+- [`package.json`](mcp-servers/node/package.json) - Node.js dependencies and scripts
+- [`tsconfig.json`](mcp-servers/node/tsconfig.json) - TypeScript configuration
+- [`Dockerfile`](mcp-servers/node/Dockerfile) - Docker configuration
+- [`docker-compose.yml`](mcp-servers/node/docker-compose.yml) - Docker Compose configuration
+- [`env.example`](mcp-servers/node/env.example) - Environment variables template
+- [`.gitignore`](mcp-servers/node/.gitignore) - Git ignore file
+- [`README.md`](mcp-servers/node/README.md) - Quick start guide
+
+
 
 ## GitHub Integration
 
@@ -790,11 +305,11 @@ Use different AI models optimized for different languages:
 ```python
 # Language-specific model routing
 MODEL_ROUTING = {
-    'javascript': 'claude-3-sonnet',  # Great for web frameworks
-    'python': 'gpt-4',               # Excellent for Python patterns
-    'java': 'claude-3-sonnet',       # Strong enterprise patterns
-    'cpp': 'gpt-4',                  # Good low-level understanding
-    'sql': 'claude-3-sonnet'         # Strong database knowledge
+    'javascript': 'claude-sonnet-4-20250514',  # Great for web frameworks
+    'python': 'gpt-5',               # Excellent for Python patterns
+    'java': 'claude-sonnet-4-20250514',       # Strong enterprise patterns
+    'cpp': 'gpt-5',                  # Good low-level understanding
+    'sql': 'claude-sonnet-4-20250514'         # Strong database knowledge
 }
 ```
 

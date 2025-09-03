@@ -8,7 +8,7 @@ Watchdog is a comprehensive, plug-and-play, multi-language GitHub PR automation 
 - **Comprehensive Linting**: ESLint, Flake8, Checkstyle, Clang-Tidy, SQLFluff with framework-specific rules
 - **Universal Formatting**: Prettier, Black+isort, Google Java Format, Clang-Format, SQLFluff
 - **Security Scanning**: Automated security audits, dependency reviews, and vulnerability scanning
-- **AI Code Reviews**: Intelligent multi-language code analysis using Claude or GPT-4 via MCP server
+- **AI Code Reviews**: Intelligent multi-language code analysis using Claude or OpenAI via MCP server
 - **Performance Optimized**: Intelligent language detection, caching, parallel jobs, and efficient workflows
 - **Zero Configuration**: Automatic tool detection with graceful degradation
 - **Detailed Reporting**: Comprehensive analysis summaries and actionable feedback across all languages

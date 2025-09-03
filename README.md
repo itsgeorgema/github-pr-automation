@@ -13,6 +13,41 @@ Watchdog is a comprehensive, plug-and-play, multi-language GitHub PR automation 
 - **Zero Configuration**: Automatic tool detection with graceful degradation
 - **Detailed Reporting**: Comprehensive analysis summaries and actionable feedback across all languages
 
+## Tech Stack
+
+### Core Technologies
+- **GitHub Actions** - CI/CD automation and workflow orchestration
+- **Node.js** - JavaScript runtime for tooling and scripts
+- **Python** - Backend services and AI integration
+- **Docker** - Containerization for MCP servers
+- **TypeScript** - Type-safe JavaScript development
+
+### Language-Specific Tools
+- **JavaScript/TypeScript**: ESLint, Prettier, TypeScript Compiler
+- **Python**: Flake8, Black, isort, MyPy, Bandit, Safety
+- **Java**: Checkstyle, Google Java Format
+- **C++**: Clang-Tidy, Clang-Format
+- **SQL**: SQLFluff
+
+### AI & Machine Learning
+- **Claude 4 Sonnet** (`claude-sonnet-4-20250514`) - Primary AI model for code analysis
+- **GPT-5** - Alternative AI model for code reviews
+- **MCP (Model Context Protocol)** - AI server communication protocol
+- **FastAPI** - Python web framework for MCP server
+- **Express.js** - Node.js web framework for MCP server
+
+### Security & Quality
+- **CodeQL** - GitHub's semantic code analysis
+- **Dependency Review** - Supply chain security
+- **npm audit** - Node.js vulnerability scanning
+- **Bandit** - Python security linting
+- **Safety** - Python dependency vulnerability checking
+
+### Infrastructure & Deployment
+- **Docker Compose** - Multi-container orchestration
+- **GitHub Secrets** - Secure credential management
+- **Cloud Platforms** - Railway, Heroku, AWS, GCP support
+
 ## Architecture
 
 ```mermaid

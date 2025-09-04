@@ -273,6 +273,7 @@ jobs:
           import json
           import os
           import sys
+          import httpx
           from pathlib import Path
           
           async def analyze_pr():
@@ -282,6 +283,7 @@ jobs:
               pr_body = os.environ.get('PR_BODY', '')
               pr_author = os.environ.get('PR_AUTHOR')
               changed_files = os.environ.get('CHANGED_FILES', '').split(',')
+              mcp_server_url = os.environ.get('MCP_SERVER_URL')
               
               # Read diff content
               diff_content = ''
@@ -290,24 +292,50 @@ jobs:
               
               # Prepare analysis payload
               analysis_data = {
-                  'pr_number': pr_number,
-                  'pr_title': pr_title,
-                  'pr_body': pr_body,
-                  'pr_author': pr_author,
+                  'pr_number': int(pr_number) if pr_number else 0,
+                  'pr_title': pr_title or 'Unknown PR',
+                  'pr_body': pr_body or '',
+                  'pr_author': pr_author or 'unknown',
                   'changed_files': [f for f in changed_files if f.strip()],
                   'diff_content': diff_content,
-                  'repository': os.environ.get('GITHUB_REPOSITORY'),
-                  'github_token': os.environ.get('GITHUB_TOKEN')
+                  'repository': os.environ.get('GITHUB_REPOSITORY', ''),
+                  'github_token': os.environ.get('GITHUB_TOKEN', '')
               }
               
-              # For now, create a sample review comment
-              # In production, this would call your MCP server
-              review_comment = f"""
+              # Try to call MCP server if URL is provided
+              if mcp_server_url:
+                  try:
+                      async with httpx.AsyncClient(timeout=60.0) as client:
+                          response = await client.post(
+                              f"{mcp_server_url}/analyze-pr",
+                              json=analysis_data,
+                              headers={"Content-Type": "application/json"}
+                          )
+                          response.raise_for_status()
+                          result = response.json()
+                          review_comment = result.get('review_comment', 'No review generated')
+                          print("Successfully called MCP server")
+                  except Exception as e:
+                      print(f"MCP server call failed: {e}")
+                      review_comment = generate_fallback_review(analysis_data)
+              else:
+                  print("No MCP server URL provided, using fallback review")
+                  review_comment = generate_fallback_review(analysis_data)
+              
+              # Output the review for the next step
+              with open('/tmp/pr-analysis/review.md', 'w') as f:
+                  f.write(review_comment)
+              
+              print("AI analysis completed successfully")
+              return True
+          
+          def generate_fallback_review(data):
+              return f"""
           ## AI Code Review
           
-          **PR Summary:** {pr_title}
-          **Author:** @{pr_author}
-          **Files Changed:** {len([f for f in changed_files if f.strip()])}
+          **PR Summary:** {data['pr_title']}
+          **Author:** @{data['pr_author']}
+          **Files Changed:** {len(data['changed_files'])}
           
           ### Analysis Results:
           
@@ -316,22 +344,15 @@ jobs:
             **Dependencies:** Dependency review completed
           
           ### Changed Files:
-          {chr(10).join([f'- `{f}`' for f in changed_files if f.strip()])}
+          {chr(10).join([f'- `{f}`' for f in data['changed_files'] if f.strip()])}
           
           ### Recommendations:
           - Code follows established patterns
           - All automated checks passed
           - Ready for human review
           
-          *This review was generated automatically. For detailed MCP server setup, see the project documentation.*
+          *This review was generated automatically. For AI-powered reviews, configure MCP_SERVER_URL in your repository secrets.*
               """
-              
-              # Output the review for the next step
-              with open('/tmp/pr-analysis/review.md', 'w') as f:
-                  f.write(review_comment)
-              
-              print("AI analysis completed successfully")
-              return True
           
           if __name__ == "__main__":
               asyncio.run(analyze_pr())
@@ -346,6 +367,7 @@ jobs:
           CHANGED_FILES: ${{ steps.changed-files.outputs.files }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
+          MCP_SERVER_URL: ${{ secrets.MCP_SERVER_URL }}
         run: python mcp_client.py
 
       - name: Post AI Review Comment

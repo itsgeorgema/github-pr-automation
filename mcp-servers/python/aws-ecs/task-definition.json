@@ -1,0 +1,54 @@
+{
+  "family": "mcp-github-reviewer-production",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "512",
+  "memory": "1024",
+  "executionRoleArn": "arn:aws:iam::089994311927:role/ecsTaskExecutionRole",
+  "taskRoleArn": "arn:aws:iam::089994311927:role/ecsTaskRole",
+  "containerDefinitions": [
+    {
+      "name": "mcp-server",
+      "image": "089994311927.dkr.ecr.us-west-1.amazonaws.com/mcp-github-reviewer:latest",
+      "portMappings": [
+        {
+          "containerPort": 8000,
+          "protocol": "tcp"
+        }
+      ],
+      "essential": true,
+      "environment": [
+        {
+          "name": "AI_PROVIDER",
+          "value": "openai"
+        },
+        {
+          "name": "PORT",
+          "value": "8000"
+        },
+        {
+          "name": "HOST",
+          "value": "0.0.0.0"
+        }
+      ],
+      "secrets": [
+        {
+          "name": "OPENAI_API_KEY",
+          "valueFrom": "arn:aws:secretsmanager:us-west-1:089994311927:secret:mcp-server/openai-key"
+        },
+        {
+          "name": "GITHUB_TOKEN",
+          "valueFrom": "arn:aws:secretsmanager:us-west-1:089994311927:secret:mcp-server/github-token"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/mcp-github-reviewer-production",
+          "awslogs-region": "us-west-1",
+          "awslogs-stream-prefix": "ecs"
+        }
+      }
+    }
+  ]
+}

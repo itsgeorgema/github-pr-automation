@@ -1,0 +1,42 @@
+{
+  "serviceName": "mcp-github-reviewer-service",
+  "cluster": "mcp-cluster",
+  "taskDefinition": "mcp-github-reviewer",
+  "desiredCount": 1,
+  "launchType": "FARGATE",
+  "platformVersion": "LATEST",
+  "networkConfiguration": {
+    "awsvpcConfiguration": {
+      "subnets": ["subnet-YOUR_SUBNET_ID"],
+      "securityGroups": ["sg-YOUR_SECURITY_GROUP_ID"],
+      "assignPublicIp": "ENABLED"
+    }
+  },
+  "loadBalancers": [
+    {
+      "targetGroupArn": "arn:aws:elasticloadbalancing:YOUR_REGION:YOUR_ACCOUNT_ID:targetgroup/mcp-tg/YOUR_TARGET_GROUP_ID",
+      "containerName": "mcp-server",
+      "containerPort": 8000
+    }
+  ],
+  "healthCheckGracePeriodSeconds": 60,
+  "deploymentConfiguration": {
+    "maximumPercent": 200,
+    "minimumHealthyPercent": 50,
+    "deploymentCircuitBreaker": {
+      "enable": true,
+      "rollback": true
+    }
+  },
+  "enableExecuteCommand": true,
+  "tags": [
+    {
+      "key": "Environment",
+      "value": "production"
+    },
+    {
+      "key": "Service",
+      "value": "mcp-github-reviewer"
+    }
+  ]
+}

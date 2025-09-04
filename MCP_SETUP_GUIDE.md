@@ -43,6 +43,12 @@ cp -r mcp-servers/python/ mcp-github-reviewer/
 cd mcp-github-reviewer
 ```
 
+**Server Files:**
+- [`main.py`](mcp-servers/python/main.py) - FastAPI server implementation
+- [`requirements.txt`](mcp-servers/python/requirements.txt) - Python dependencies
+- [`Dockerfile`](mcp-servers/python/Dockerfile) - Docker container configuration
+- [`env.example`](mcp-servers/python/env.example) - Environment variables template
+
 #### 2. Install Dependencies
 
 ```bash
@@ -85,6 +91,13 @@ Copy the Node.js MCP server files from the `mcp-servers/node/` directory:
 cp -r mcp-servers/node/ mcp-github-reviewer-js/
 cd mcp-github-reviewer-js
 ```
+
+**Server Files:**
+- [`src/server.ts`](mcp-servers/node/src/server.ts) - Express.js server implementation
+- [`package.json`](mcp-servers/node/package.json) - Node.js dependencies and scripts
+- [`tsconfig.json`](mcp-servers/node/tsconfig.json) - TypeScript configuration
+- [`Dockerfile`](mcp-servers/node/Dockerfile) - Docker container configuration
+- [`env.example`](mcp-servers/node/env.example) - Environment variables template
 
 #### 2. Install Dependencies
 
@@ -183,6 +196,40 @@ python main.py
 
 # Node.js
 npm run dev
+```
+
+### 2. AWS ECS Deployment
+
+Both Python and Node.js servers can be deployed to AWS ECS with Fargate for production use:
+
+#### Python FastAPI Server
+
+**Deployment Files:**
+- [`cloudformation.yaml`](mcp-servers/python/aws-ecs/cloudformation.yaml) - AWS infrastructure template
+- [`deploy.sh`](mcp-servers/python/aws-ecs/deploy.sh) - Automated deployment script
+- [`setup-secrets.sh`](mcp-servers/python/aws-ecs/setup-secrets.sh) - Secure secrets setup
+- [`README.md`](mcp-servers/python/aws-ecs/README.md) - Complete deployment guide
+
+**Quick Deploy:**
+```bash
+cd mcp-servers/python/aws-ecs
+./setup-secrets.sh production
+./deploy.sh production
+```
+
+#### Node.js Express Server
+
+**Deployment Files:**
+- [`cloudformation.yaml`](mcp-servers/node/aws-ecs/cloudformation.yaml) - AWS infrastructure template
+- [`deploy.sh`](mcp-servers/node/aws-ecs/deploy.sh) - Automated deployment script
+- [`setup-secrets.sh`](mcp-servers/node/aws-ecs/setup-secrets.sh) - Secure secrets setup
+- [`README.md`](mcp-servers/node/aws-ecs/README.md) - Complete deployment guide
+
+**Quick Deploy:**
+```bash
+cd mcp-servers/node/aws-ecs
+./setup-secrets.sh production
+./deploy.sh production
 ```
 
 ### 2. Docker Deployment

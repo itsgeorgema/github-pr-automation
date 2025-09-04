@@ -152,17 +152,30 @@ async function callOpenAI(prompt: string): Promise<string> {
   }
   
   try {
-    const completion = await openai.chat.completions.create({
+    // Try GPT-5 Responses API first (typed)
+    const response = await openai.responses.create({
       model: 'gpt-5',
-      messages: [{ role: 'user', content: prompt }],
-      max_tokens: 4000,
-      temperature: 0.1,
+      input: prompt,
     });
-    
-    return completion.choices[0].message.content || '';
+
+    return (response as any).output_text as string;
   } catch (error) {
-    console.error('OpenAI API error:', error);
-    return 'Error calling OpenAI API';
+    console.error('OpenAI Responses API error:', error);
+    
+    // Fallback to chat completions API
+    try {
+      const completion = await openai.chat.completions.create({
+        model: 'gpt-5',
+        messages: [{ role: 'user', content: prompt }],
+        max_completion_tokens: 4000,
+        temperature: 0.1,
+      });
+      
+      return completion.choices[0].message.content || '';
+    } catch (fallbackError) {
+      console.error('OpenAI fallback API error:', fallbackError);
+      return 'Error calling OpenAI API';
+    }
   }
 }
 
@@ -332,8 +345,8 @@ app.get('/health', (req, res) => {
   res.json({
     status: 'healthy',
     ai_provider: process.env.AI_PROVIDER,
-    anthropic_available: !!process.env.ANTHROPIC_API_KEY,
-    openai_available: !!process.env.OPENAI_API_KEY,
+    anthropic_available: !!anthropic,
+    openai_available: !!openai,
   });
 });
 

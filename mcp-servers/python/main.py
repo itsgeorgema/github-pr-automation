@@ -6,7 +6,7 @@ from fastapi import FastAPI, HTTPException, Header
 from pydantic import BaseModel
 import httpx
 from anthropic import Anthropic
-import openai
+from openai import OpenAI
 
 app = FastAPI(title="GitHub PR MCP Server", version="1.0.0")
 
@@ -14,12 +14,11 @@ app = FastAPI(title="GitHub PR MCP Server", version="1.0.0")
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-AI_PROVIDER = os.getenv("AI_PROVIDER", "anthropic")  # or "openai"
+AI_PROVIDER = os.getenv("AI_PROVIDER", "openai")  # "openai" by default
 
 # Initialize AI clients
 anthropic_client = Anthropic(api_key=ANTHROPIC_API_KEY) if ANTHROPIC_API_KEY else None
-if OPENAI_API_KEY:
-    openai.api_key = OPENAI_API_KEY
+openai_client: Optional[OpenAI] = OpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
 
 class PRAnalysisRequest(BaseModel):
     pr_number: int
@@ -110,7 +109,7 @@ async def generate_ai_review(request: PRAnalysisRequest) -> Dict:
 
     if AI_PROVIDER == "anthropic" and anthropic_client:
         response = await call_anthropic(prompt)
-    elif AI_PROVIDER == "openai" and OPENAI_API_KEY:
+    elif AI_PROVIDER == "openai" and openai_client:
         response = await call_openai(prompt)
     else:
         response = generate_fallback_review(request)
@@ -135,21 +134,28 @@ async def call_anthropic(prompt: str) -> str:
         return "Error calling Anthropic API"
 
 async def call_openai(prompt: str) -> str:
-    """Call OpenAI GPT API."""
-    if not OPENAI_API_KEY:
-        return "OpenAI API key not configured"
-    
+    """Call OpenAI GPT-5 via the Responses API (recommended)."""
+    if not openai_client:
+        return "OpenAI client not initialized"
+
     try:
-        response = openai.chat.completions.create(
+        response = openai_client.responses.create(
             model="gpt-5",
-            messages=[{"role": "user", "content": prompt}],
-            max_tokens=4000,
-            temperature=0.1
+            input=prompt,
         )
-        return response.choices[0].message.content
+        return response.output_text
     except Exception as e:
-        print(f"OpenAI API error: {e}")
-        return "Error calling OpenAI API"
+        # Basic fallback to chat completions for older regions or SDKs
+        try:
+            chat = openai_client.chat.completions.create(
+                model="gpt-5",
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.1,
+            )
+            return chat.choices[0].message.content or ""
+        except Exception as e2:
+            print(f"OpenAI API error: {e}; Fallback error: {e2}")
+            return "Error calling OpenAI API"
 
 def generate_fallback_review(request: PRAnalysisRequest) -> str:
     """Generate a basic multi-language review when AI APIs are unavailable."""

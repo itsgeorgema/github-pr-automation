@@ -4,12 +4,12 @@
   "requiresCompatibilities": ["FARGATE"],
   "cpu": "512",
   "memory": "1024",
-  "executionRoleArn": "arn:aws:iam::ACCOUNT_ID:role/mcp-github-reviewer-express-execution-role-production",
-  "taskRoleArn": "arn:aws:iam::ACCOUNT_ID:role/mcp-github-reviewer-express-task-role-production",
+  "executionRoleArn": "arn:aws:iam::${AWS::AccountId}:role/mcp-express-exec-role-production",
+  "taskRoleArn": "arn:aws:iam::${AWS::AccountId}:role/mcp-express-task-role-production",
   "containerDefinitions": [
     {
       "name": "mcp-github-reviewer-express",
-      "image": "ACCOUNT_ID.dkr.ecr.REGION.amazonaws.com/mcp-github-reviewer-express:latest",
+      "image": "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/mcp-github-reviewer-express:latest",
       "portMappings": [
         {
           "containerPort": 8000,
@@ -38,18 +38,18 @@
       "secrets": [
         {
           "name": "OPENAI_API_KEY",
-          "valueFrom": "arn:aws:secretsmanager:REGION:ACCOUNT_ID:secret:mcp-server/openai-key"
+          "valueFrom": "arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:mcp-server/openai-key"
         },
         {
           "name": "GITHUB_TOKEN",
-          "valueFrom": "arn:aws:secretsmanager:REGION:ACCOUNT_ID:secret:mcp-server/github-token"
+          "valueFrom": "arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:mcp-server/github-token"
         }
       ],
       "logConfiguration": {
         "logDriver": "awslogs",
         "options": {
           "awslogs-group": "/ecs/mcp-github-reviewer-express-production",
-          "awslogs-region": "REGION",
+          "awslogs-region": "${AWS::Region}",
           "awslogs-stream-prefix": "ecs"
         }
       },

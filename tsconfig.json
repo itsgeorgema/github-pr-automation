@@ -48,6 +48,8 @@
     ".next",
     "dist",
     "build",
-    "out"
+    "out",
+    "mcp-servers/node/**",
+    "mcp-servers/python/**"
   ]
 }

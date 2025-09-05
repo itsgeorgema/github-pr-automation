@@ -59,7 +59,7 @@ app.post('/analyze-pr', async (req: express.Request, res: express.Response) => {
     if (request.github_token) {
       // Post overall summary comment
       await postGitHubComment(request, reviewData.review_comment);
-      
+
       // Post individual line comments
       for (const lineComment of reviewData.line_comments) {
         await postLineComment(request, lineComment);
@@ -78,9 +78,9 @@ async function generateAIReview(request: PRAnalysisRequest): Promise<ReviewRespo
 
   // Chunk the diff content to avoid rate limits
   const diffChunks = chunkDiffContent(request.diff_content);
-  
+
   // Generate line-specific comments for each chunk
-  const lineComments: Array<{line_number: number; comment: string; chunk_index: number}> = [];
+  const lineComments: Array<{ line_number: number; comment: string; chunk_index: number }> = [];
   let overallComment = '';
 
   for (let i = 0; i < diffChunks.length; i++) {
@@ -144,7 +144,7 @@ Provide a concise overall assessment with a 1-10 score.`;
     line_comments: lineComments,
     suggestions: extractSuggestions(overallComment),
     issues: extractIssues(overallComment),
-    overall_score: extractScore(overallComment)
+    overall_score: extractScore(overallComment),
   };
 }
 
@@ -178,7 +178,8 @@ async function callOpenAI(prompt: string): Promise<string> {
     const response = await openai.responses.create({
       model: 'gpt-5',
       input: prompt,
-      instructions: 'You are an expert code reviewer. Analyze code diffs and provide specific, actionable feedback. Focus on code quality, security, performance, and best practices. Be constructive and helpful in your feedback. When providing line-by-line comments, use the format: LINE_COMMENT: [line_number]: [specific comment about that line].'
+      instructions:
+        'You are an expert code reviewer. Analyze code diffs and provide specific, actionable feedback. Focus on code quality, security, performance, and best practices. Be constructive and helpful in your feedback. When providing line-by-line comments, use the format: LINE_COMMENT: [line_number]: [specific comment about that line].',
     });
 
     return (response as any).output_text as string;
@@ -349,7 +350,10 @@ async function postGitHubComment(request: PRAnalysisRequest, comment: string): P
   }
 }
 
-async function postLineComment(request: PRAnalysisRequest, lineComment: {line_number: number; comment: string; chunk_index: number}): Promise<void> {
+async function postLineComment(
+  request: PRAnalysisRequest,
+  lineComment: { line_number: number; comment: string; chunk_index: number }
+): Promise<void> {
   try {
     // Get PR details to find the commit SHA and file path
     const prUrl = `https://api.github.com/repos/${request.repository}/pulls/${request.pr_number}`;
@@ -382,11 +386,13 @@ async function postLineComment(request: PRAnalysisRequest, lineComment: {line_nu
     const reviewData = {
       body: `🤖 **AI Code Review**\n\n${lineComment.comment}`,
       event: 'COMMENT',
-      comments: [{
-        path: filePath,
-        line: lineComment.line_number,
-        body: lineComment.comment,
-      }],
+      comments: [
+        {
+          path: filePath,
+          line: lineComment.line_number,
+          body: lineComment.comment,
+        },
+      ],
     };
 
     await axios.post(reviewUrl, reviewData, {
@@ -465,8 +471,11 @@ function chunkDiffContent(diffContent: string, maxChunkSize: number = 2000): str
   return chunks;
 }
 
-function parseLineComments(response: string, chunkIndex: number): Array<{line_number: number; comment: string; chunk_index: number}> {
-  const lineComments: Array<{line_number: number; comment: string; chunk_index: number}> = [];
+function parseLineComments(
+  response: string,
+  chunkIndex: number
+): Array<{ line_number: number; comment: string; chunk_index: number }> {
+  const lineComments: Array<{ line_number: number; comment: string; chunk_index: number }> = [];
   const lines = response.split('\n');
 
   for (const line of lines) {
@@ -481,7 +490,7 @@ function parseLineComments(response: string, chunkIndex: number): Array<{line_nu
           lineComments.push({
             line_number: lineNum,
             comment: comment,
-            chunk_index: chunkIndex
+            chunk_index: chunkIndex,
           });
         } catch (error) {
           // Skip invalid line numbers
@@ -500,10 +509,12 @@ function extractSuggestions(text: string): string[] {
 
   for (const line of lines) {
     const trimmedLine = line.trim();
-    if (trimmedLine.toLowerCase().includes('suggestion') || 
-        trimmedLine.toLowerCase().includes('recommend') ||
-        trimmedLine.toLowerCase().includes('consider') ||
-        trimmedLine.toLowerCase().includes('should')) {
+    if (
+      trimmedLine.toLowerCase().includes('suggestion') ||
+      trimmedLine.toLowerCase().includes('recommend') ||
+      trimmedLine.toLowerCase().includes('consider') ||
+      trimmedLine.toLowerCase().includes('should')
+    ) {
       if (trimmedLine.startsWith('- ')) {
         suggestions.push(trimmedLine.substring(2));
       } else if (trimmedLine.startsWith('* ')) {
@@ -523,11 +534,13 @@ function extractIssues(text: string): string[] {
 
   for (const line of lines) {
     const trimmedLine = line.trim();
-    if (trimmedLine.toLowerCase().includes('issue') ||
-        trimmedLine.toLowerCase().includes('problem') ||
-        trimmedLine.toLowerCase().includes('error') ||
-        trimmedLine.toLowerCase().includes('bug') ||
-        trimmedLine.toLowerCase().includes('concern')) {
+    if (
+      trimmedLine.toLowerCase().includes('issue') ||
+      trimmedLine.toLowerCase().includes('problem') ||
+      trimmedLine.toLowerCase().includes('error') ||
+      trimmedLine.toLowerCase().includes('bug') ||
+      trimmedLine.toLowerCase().includes('concern')
+    ) {
       if (trimmedLine.startsWith('- ')) {
         issues.push(trimmedLine.substring(2));
       } else if (trimmedLine.startsWith('* ')) {
@@ -548,7 +561,7 @@ function extractScore(text: string): number {
     /rating[:\s]+(\d+)/i,
     /(\d+)\/10/i,
     /(\d+)\s*out\s*of\s*10/i,
-    /overall[:\s]+(\d+)/i
+    /overall[:\s]+(\d+)/i,
   ];
 
   for (const pattern of scorePatterns) {

@@ -39,3 +39,6 @@ logs/
 # Ignore files that don't have parsers
 *.xml
 *.svg
+
+# Ignore MCP server files
+mcp-servers/

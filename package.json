@@ -37,7 +37,7 @@
     "test:coverage": "jest --coverage",
     "prepare": "husky install",
     "pre-commit": "lint-staged",
-    "validate": "npm run lint:check && npm run format:check && npm run type-check",
+    "validate": "npm run lint:check && npm run format:check && (find . -name '*.ts' -o -name '*.tsx' | grep -v mcp-servers | grep -q . && npm run type-check || echo 'No TypeScript files found, skipping type check')",
     "validate:js": "npm run lint:js:check && npm run format:js:check && (find . -maxdepth 1 -name '*.ts' -o -name '*.tsx' | grep -q . && npm run type-check || echo 'No TypeScript files found, skipping type check')",
     "validate:python": "npm run lint:python:check && npm run format:python:check",
     "validate:java": "npm run lint:java:check && npm run format:java:check",
@@ -46,8 +46,8 @@
   },
   "devDependencies": {
     "@next/eslint-plugin-next": "^15.5.2",
-    "@typescript-eslint/eslint-plugin": "^8.15.0",
-    "@typescript-eslint/parser": "^8.15.0",
+    "@typescript-eslint/eslint-plugin": "^8.42.0",
+    "@typescript-eslint/parser": "^8.42.0",
     "eslint": "^9.34.0",
     "eslint-config-next": "^15.5.2",
     "eslint-config-prettier": "^9.1.0",
@@ -59,7 +59,8 @@
     "eslint-plugin-mdx": "^3.1.5",
     "eslint-plugin-prettier": "^5.2.1",
     "eslint-plugin-react": "^7.37.2",
-    "eslint-plugin-react-hooks": "^5.0.0",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "eslint-plugin-react-refresh": "^0.4.20",
     "eslint-plugin-testing-library": "^7.1.0",
     "eslint-plugin-yml": "^1.15.0",
     "husky": "^9.1.7",
@@ -68,6 +69,7 @@
     "lint-staged": "^15.2.10",
     "prettier": "^3.6.2",
     "typescript": "^5.7.2",
+    "typescript-eslint": "^8.42.0",
     "yaml-eslint-parser": "^1.2.3"
   },
   "lint-staged": {

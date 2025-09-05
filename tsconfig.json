@@ -1,14 +1,14 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "lib": ["ES2022"],
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "allowJs": true,
     "skipLibCheck": true,
     "strict": true,
     "noEmit": true,
     "esModuleInterop": true,
-    "module": "commonjs",
-    "moduleResolution": "node",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "isolatedModules": true,
     "incremental": true,
@@ -19,17 +19,12 @@
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
     "noUncheckedIndexedAccess": true,
-    "noImplicitOverride": true
+    "noImplicitOverride": true,
+    "jsx": "react-jsx",
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "moduleDetection": "force"
   },
-  "include": ["*.ts", "*.tsx", "src/**/*.ts", "src/**/*.tsx"],
-  "exclude": [
-    "node_modules",
-    "dist",
-    "build",
-    "out",
-    "coverage",
-    ".next",
-    "vite-test-website/node_modules",
-    "vite-test-website/dist"
-  ]
+  "include": ["*.ts", "*.tsx", "src/**/*.ts", "src/**/*.tsx", "vite-test/**/*.ts", "vite-test/**/*.tsx"],
+  "exclude": ["node_modules", "dist", "build", "out", "coverage", ".next", "mcp-servers/**"]
 }

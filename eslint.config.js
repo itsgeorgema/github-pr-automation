@@ -90,13 +90,10 @@ export default [
       'out/**',
       'coverage/**',
       '.next/**',
-      'vite-test-project/**',
       'mcp-servers/**',
       '.github/workflows/**',
       '**/*.md',
       '**/*.mdx',
-      '**/*.ts',
-      '**/*.tsx',
     ],
   },
 ];

@@ -3,14 +3,23 @@
 # AWS ECS Deployment Script for MCP GitHub Reviewer
 # Usage: ./deploy.sh [environment] [region]
 
-set -e
+set -euo pipefail
 
-# Configuration
+trap 'echo "[error] Deployment failed (line $LINENO)" >&2' ERR
+
+# Configuration / flags
 ENVIRONMENT=${1:-production}
 REGION=${2:-us-west-1}
+
+# Optional behavior flags (default to fast-path optimizations)
+FORCE_DEPLOY=${FORCE_DEPLOY:-false}
+SKIP_BUILD_IF_EXISTS=${SKIP_BUILD_IF_EXISTS:-true}
+SKIP_DEPLOY_IF_SAME_TAG=${SKIP_DEPLOY_IF_SAME_TAG:-true}
+
 AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 ECR_REPOSITORY="mcp-github-reviewer"
 STACK_NAME="mcp-github-reviewer-${ENVIRONMENT}"
+IMAGE_TAG=${3:-latest}
 
 echo "Deploying MCP GitHub Reviewer to AWS ECS"
 echo "Environment: ${ENVIRONMENT}"
@@ -24,6 +33,23 @@ if ! aws sts get-caller-identity > /dev/null 2>&1; then
     exit 1
 fi
 
+require_jq() { command -v jq >/dev/null 2>&1 || { echo "jq is required" >&2; exit 1; }; }
+
+image_exists_in_ecr() {
+  aws ecr describe-images \
+    --repository-name "${ECR_REPOSITORY}" \
+    --image-ids imageTag="${IMAGE_TAG}" \
+    --region "${REGION}" >/dev/null 2>&1
+}
+
+current_stack_image_tag() {
+  aws cloudformation describe-stacks \
+    --stack-name "${STACK_NAME}" \
+    --region "${REGION}" \
+    --query 'Stacks[0].Parameters[?ParameterKey==`ImageTag`].ParameterValue' \
+    --output text 2>/dev/null || true
+}
+
 # Create ECR repository if it doesn't exist
 echo "Setting up ECR repository..."
 aws ecr describe-repositories --repository-names ${ECR_REPOSITORY} --region ${REGION} > /dev/null 2>&1 || {
@@ -31,44 +57,66 @@ aws ecr describe-repositories --repository-names ${ECR_REPOSITORY} --region ${RE
     aws ecr create-repository --repository-name ${ECR_REPOSITORY} --region ${REGION}
 }
 
-# Get ECR login token
-echo "Logging into ECR..."
-aws ecr get-login-password --region ${REGION} | docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com
+# Build & push image (skip when possible)
+DO_BUILD_PUSH=true
+if ${SKIP_BUILD_IF_EXISTS} && image_exists_in_ecr; then
+  echo "Image ${ECR_REPOSITORY}:${IMAGE_TAG} already exists in ECR. Skipping build/push."
+  DO_BUILD_PUSH=false
+fi
 
-# Build and push Docker image
-echo "Building Docker image for linux/amd64..."
-docker build --platform linux/amd64 -t ${ECR_REPOSITORY}:latest ..
+if ${DO_BUILD_PUSH}; then
+  echo "Logging into ECR..."
+  aws ecr get-login-password --region ${REGION} | docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com
 
-# Tag and push to ECR
-echo "Pushing image to ECR..."
-docker tag ${ECR_REPOSITORY}:latest ${AWS_ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com/${ECR_REPOSITORY}:latest
-docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com/${ECR_REPOSITORY}:latest
+  echo "Building Docker image for linux/amd64..."
+  docker build --platform linux/amd64 -t ${ECR_REPOSITORY}:${IMAGE_TAG} ..
+
+  echo "Tagging image..."
+  docker tag ${ECR_REPOSITORY}:${IMAGE_TAG} ${AWS_ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com/${ECR_REPOSITORY}:${IMAGE_TAG}
+
+  echo "Pushing image to ECR..."
+  docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com/${ECR_REPOSITORY}:${IMAGE_TAG}
+fi
 
 # Create or update CloudFormation stack
 echo "Deploying CloudFormation stack..."
-aws cloudformation deploy \
-    --template-file cloudformation.yaml \
-    --stack-name ${STACK_NAME} \
-    --parameter-overrides \
-        Environment=${ENVIRONMENT} \
-        VpcId=$(aws ec2 describe-vpcs --filters "Name=is-default,Values=true" --query 'Vpcs[0].VpcId' --output text --region ${REGION}) \
-        SubnetIds=$(aws ec2 describe-subnets --filters "Name=vpc-id,Values=$(aws ec2 describe-vpcs --filters "Name=is-default,Values=true" --query 'Vpcs[0].VpcId' --output text --region ${REGION})" --query 'Subnets[*].SubnetId' --output text --region ${REGION} | tr '\t' ',') \
-    --capabilities CAPABILITY_NAMED_IAM \
-    --region ${REGION}
+DO_DEPLOY=true
+EXISTING_TAG=$(current_stack_image_tag || true)
+if ${SKIP_DEPLOY_IF_SAME_TAG} && [[ "${EXISTING_TAG}" == "${IMAGE_TAG}" ]] && [[ "${FORCE_DEPLOY}" != true ]]; then
+  echo "Stack already uses ImageTag=${IMAGE_TAG}. Skipping CloudFormation deploy."
+  DO_DEPLOY=false
+fi
 
-# Get stack outputs
+if ${DO_DEPLOY}; then
+  aws cloudformation deploy \
+      --template-file cloudformation.yaml \
+      --stack-name ${STACK_NAME} \
+      --parameter-overrides \
+          Environment=${ENVIRONMENT} \
+          VpcId=$(aws ec2 describe-vpcs --filters "Name=is-default,Values=true" --query 'Vpcs[0].VpcId' --output text --region ${REGION}) \
+          SubnetIds=$(aws ec2 describe-subnets --filters "Name=vpc-id,Values=$(aws ec2 describe-vpcs --filters "Name=is-default,Values=true" --query 'Vpcs[0].VpcId' --output text --region ${REGION})" --query 'Subnets[*].SubnetId' --output text --region ${REGION} | tr '\t' ',') \
+          ImageTag=${IMAGE_TAG} \
+      --capabilities CAPABILITY_NAMED_IAM \
+      --no-fail-on-empty-changeset \
+      --region ${REGION}
+fi
+
 echo "Getting deployment information..."
-LOAD_BALANCER_DNS=$(aws cloudformation describe-stacks \
+STACK_OUTPUTS=$(aws cloudformation describe-stacks \
     --stack-name ${STACK_NAME} \
-    --query 'Stacks[0].Outputs[?OutputKey==`LoadBalancerDNS`].OutputValue' \
-    --output text \
-    --region ${REGION})
+    --region ${REGION} \
+    --query 'Stacks[0].Outputs' \
+    --output json)
 
-LOAD_BALANCER_URL=$(aws cloudformation describe-stacks \
-    --stack-name ${STACK_NAME} \
-    --query 'Stacks[0].Outputs[?OutputKey==`LoadBalancerURL`].OutputValue' \
-    --output text \
-    --region ${REGION})
+get_output() {
+  local key=$1
+  echo "${STACK_OUTPUTS}" | jq -r ".[] | select(.OutputKey==\"${key}\").OutputValue" | sed 's/null//'
+}
+
+LOAD_BALANCER_DNS=$(get_output LoadBalancerDNS)
+LOAD_BALANCER_URL=$(get_output LoadBalancerURL)
+CLUSTER_NAME=$(get_output ClusterName)
+SERVICE_NAME=$(get_output ServiceName)
 
 echo "Deployment completed successfully!"
 echo ""
@@ -85,5 +133,15 @@ echo "  2. Test the deployment:"
 echo "     curl ${LOAD_BALANCER_URL}/health"
 echo "  3. Monitor logs:"
 echo "     aws logs tail /ecs/mcp-github-reviewer-${ENVIRONMENT} --follow --region ${REGION}"
+
+# Force a new deployment to refresh tasks to the latest image when using mutable tags
+if [[ -n "${CLUSTER_NAME}" && -n "${SERVICE_NAME}" ]]; then
+  echo "Forcing new ECS deployment for service: ${SERVICE_NAME} (cluster: ${CLUSTER_NAME})"
+  aws ecs update-service \
+    --cluster "${CLUSTER_NAME}" \
+    --service "${SERVICE_NAME}" \
+    --force-new-deployment \
+    --region "${REGION}" >/dev/null
+fi
 echo ""
 echo "MCP GitHub Reviewer is now running on AWS ECS!"

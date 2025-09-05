@@ -201,7 +201,7 @@ jobs:
           if [ "${{ needs.detect-changes.outputs.has-js-ts }}" == "true" ]; then
             echo "Running JS/TS linting..."
             # Exclude workflow files and vite-test-website from linting
-            eslint . --ext .js,.jsx,.ts,.tsx,.json,.yml,.yaml,.md,.mdx --ignore-pattern ".github/workflows/**/*" --ignore-pattern "vite-test-website/**/*"
+            npm run lint:js:check
           fi
         continue-on-error: true
 
@@ -211,7 +211,7 @@ jobs:
           if [ "${{ needs.detect-changes.outputs.has-js-ts }}" == "true" ]; then
             echo "Running JS/TS format check..."
             # Exclude workflow files from format checking
-            prettier --check "**/*.{js,jsx,ts,tsx,json,jsonc,md,mdx,html,css,scss,less,yml,yaml,xml,svg}" --ignore-path .prettierignore
+            npm run format:js:check
           fi
         continue-on-error: true
 
@@ -221,7 +221,7 @@ jobs:
           if [ "${{ needs.detect-changes.outputs.has-js-ts }}" == "true" ]; then
             echo "Auto-fixing JS/TS issues..."
             # Exclude workflow files and vite-test-website from auto-fixing
-            eslint . --ext .js,.jsx,.ts,.tsx,.json,.yml,.yaml,.md,.mdx --fix --ignore-pattern ".github/workflows/**/*" --ignore-pattern "vite-test-website/**/*"
+            npm run lint:js:fix
           fi
         continue-on-error: true
 
@@ -231,7 +231,7 @@ jobs:
           if [ "${{ needs.detect-changes.outputs.has-js-ts }}" == "true" ]; then
             echo "Auto-formatting JS/TS code..."
             # Exclude workflow files from auto-formatting
-            prettier --write "**/*.{js,jsx,ts,tsx,json,jsonc,md,mdx,html,css,scss,less,yml,yaml,xml,svg}" --ignore-path .prettierignore
+            npm run format:js:fix
           fi
         continue-on-error: true
 

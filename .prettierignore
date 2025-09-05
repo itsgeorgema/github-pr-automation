@@ -1,8 +1,8 @@
 # Ignore workflow files
 .github/workflows/
 
-# Ignore vite-test-website
-vite-test-website/
+# Ignore vite-test-project
+vite-test-project/
 
 # Ignore node_modules
 node_modules/

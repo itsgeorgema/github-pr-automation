@@ -20,7 +20,7 @@ Resources:
   ECSCluster:
     Type: AWS::ECS::Cluster
     Properties:
-      ClusterName: !Sub "mcp-cluster-${Environment}"
+      ClusterName: !Sub "mcp-python-cluster-${Environment}"
       CapacityProviders:
         - FARGATE
         - FARGATE_SPOT
@@ -32,15 +32,15 @@ Resources:
   LogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Sub "/ecs/mcp-github-reviewer-${Environment}"
+      LogGroupName: !Sub "/ecs/mcp-python-github-reviewer-${Environment}"
       RetentionInDays: 30
 
   # Security Group
   SecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupName: !Sub "mcp-sg-${Environment}"
-      GroupDescription: Security group for MCP GitHub Reviewer
+      GroupName: !Sub "mcp-python-sg-${Environment}"
+      GroupDescription: Security group for MCP GitHub Reviewer Python
       VpcId: !Ref VpcId
       SecurityGroupIngress:
         - IpProtocol: tcp
@@ -59,8 +59,8 @@ Resources:
   ALBSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupName: !Sub "mcp-alb-sg-${Environment}"
-      GroupDescription: Security group for ALB
+      GroupName: !Sub "mcp-python-alb-sg-${Environment}"
+      GroupDescription: Security group for Python ALB
       VpcId: !Ref VpcId
       SecurityGroupIngress:
         - IpProtocol: tcp
@@ -79,7 +79,7 @@ Resources:
   ApplicationLoadBalancer:
     Type: AWS::ElasticLoadBalancingV2::LoadBalancer
     Properties:
-      Name: !Sub "mcp-alb-${Environment}"
+      Name: !Sub "mcp-python-alb-${Environment}"
       Scheme: internet-facing
       Type: application
       Subnets: !Ref SubnetIds
@@ -94,7 +94,7 @@ Resources:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
     DependsOn: ApplicationLoadBalancer
     Properties:
-      Name: !Sub "mcp-tg-${Environment}"
+      Name: !Sub "mcp-python-tg-${Environment}"
       Port: 8000
       Protocol: HTTP
       VpcId: !Ref VpcId
@@ -197,7 +197,7 @@ Resources:
   TaskExecutionRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: !Sub "mcp-task-execution-role-${Environment}"
+      RoleName: !Sub "mcp-python-task-execution-role-${Environment}"
       AssumeRolePolicyDocument:
         Version: 2012-10-17
         Statement:
@@ -223,7 +223,7 @@ Resources:
   TaskRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: !Sub "mcp-task-role-${Environment}"
+      RoleName: !Sub "mcp-python-task-role-${Environment}"
       AssumeRolePolicyDocument:
         Version: 2012-10-17
         Statement:

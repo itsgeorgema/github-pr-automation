@@ -200,8 +200,23 @@ jobs:
           echo "Running linting checks for detected languages..."
           if [ "${{ needs.detect-changes.outputs.has-js-ts }}" == "true" ]; then
             echo "Running JS/TS linting..."
-            # Exclude workflow files and vite-test-website from linting
             npm run lint:js:check
+          fi
+          if [ "${{ needs.detect-changes.outputs.has-python }}" == "true" ]; then
+            echo "Running Python linting..."
+            npm run lint:python:check
+          fi
+          if [ "${{ needs.detect-changes.outputs.has-java }}" == "true" ]; then
+            echo "Running Java linting..."
+            npm run lint:java:check
+          fi
+          if [ "${{ needs.detect-changes.outputs.has-cpp }}" == "true" ]; then
+            echo "Running C++ linting..."
+            npm run lint:cpp:check
+          fi
+          if [ "${{ needs.detect-changes.outputs.has-sql }}" == "true" ]; then
+            echo "Running SQL linting..."
+            npm run lint:sql:check
           fi
         continue-on-error: true
 
@@ -210,8 +225,23 @@ jobs:
           echo "Running format checks for detected languages..."
           if [ "${{ needs.detect-changes.outputs.has-js-ts }}" == "true" ]; then
             echo "Running JS/TS format check..."
-            # Exclude workflow files from format checking
             npm run format:js:check
+          fi
+          if [ "${{ needs.detect-changes.outputs.has-python }}" == "true" ]; then
+            echo "Running Python format check..."
+            npm run format:python:check
+          fi
+          if [ "${{ needs.detect-changes.outputs.has-java }}" == "true" ]; then
+            echo "Running Java format check..."
+            npm run format:java:check
+          fi
+          if [ "${{ needs.detect-changes.outputs.has-cpp }}" == "true" ]; then
+            echo "Running C++ format check..."
+            npm run format:cpp:check
+          fi
+          if [ "${{ needs.detect-changes.outputs.has-sql }}" == "true" ]; then
+            echo "Running SQL format check..."
+            npm run format:sql:check
           fi
         continue-on-error: true
 
@@ -220,8 +250,23 @@ jobs:
           echo "Auto-fixing issues for detected languages..."
           if [ "${{ needs.detect-changes.outputs.has-js-ts }}" == "true" ]; then
             echo "Auto-fixing JS/TS issues..."
-            # Exclude workflow files and vite-test-website from auto-fixing
             npm run lint:js:fix
+          fi
+          if [ "${{ needs.detect-changes.outputs.has-python }}" == "true" ]; then
+            echo "Auto-fixing Python issues..."
+            npm run lint:python
+          fi
+          if [ "${{ needs.detect-changes.outputs.has-java }}" == "true" ]; then
+            echo "Auto-fixing Java issues..."
+            npm run lint:java
+          fi
+          if [ "${{ needs.detect-changes.outputs.has-cpp }}" == "true" ]; then
+            echo "Auto-fixing C++ issues..."
+            npm run lint:cpp
+          fi
+          if [ "${{ needs.detect-changes.outputs.has-sql }}" == "true" ]; then
+            echo "Auto-fixing SQL issues..."
+            npm run lint:sql
           fi
         continue-on-error: true
 
@@ -230,8 +275,23 @@ jobs:
           echo "Auto-formatting code for detected languages..."
           if [ "${{ needs.detect-changes.outputs.has-js-ts }}" == "true" ]; then
             echo "Auto-formatting JS/TS code..."
-            # Exclude workflow files from auto-formatting
             npm run format:js:fix
+          fi
+          if [ "${{ needs.detect-changes.outputs.has-python }}" == "true" ]; then
+            echo "Auto-formatting Python code..."
+            npm run format:python
+          fi
+          if [ "${{ needs.detect-changes.outputs.has-java }}" == "true" ]; then
+            echo "Auto-formatting Java code..."
+            npm run format:java
+          fi
+          if [ "${{ needs.detect-changes.outputs.has-cpp }}" == "true" ]; then
+            echo "Auto-formatting C++ code..."
+            npm run format:cpp
+          fi
+          if [ "${{ needs.detect-changes.outputs.has-sql }}" == "true" ]; then
+            echo "Auto-formatting SQL code..."
+            npm run format:sql
           fi
         continue-on-error: true
 
@@ -269,8 +329,39 @@ jobs:
           fi
 
       - name: Run final validation
-        if: needs.detect-changes.outputs.has-js-ts == 'true'
-        run: npm run validate
+        run: |
+          echo "Running final validation for detected languages..."
+          LANGUAGES_VALIDATED=false
+          
+          if [ "${{ needs.detect-changes.outputs.has-js-ts }}" == "true" ]; then
+            echo "Running JS/TS validation..."
+            npm run validate:js
+            LANGUAGES_VALIDATED=true
+          fi
+          if [ "${{ needs.detect-changes.outputs.has-python }}" == "true" ]; then
+            echo "Running Python validation..."
+            npm run validate:python
+            LANGUAGES_VALIDATED=true
+          fi
+          if [ "${{ needs.detect-changes.outputs.has-java }}" == "true" ]; then
+            echo "Running Java validation..."
+            npm run validate:java
+            LANGUAGES_VALIDATED=true
+          fi
+          if [ "${{ needs.detect-changes.outputs.has-cpp }}" == "true" ]; then
+            echo "Running C++ validation..."
+            npm run validate:cpp
+            LANGUAGES_VALIDATED=true
+          fi
+          if [ "${{ needs.detect-changes.outputs.has-sql }}" == "true" ]; then
+            echo "Running SQL validation..."
+            npm run validate:sql
+            LANGUAGES_VALIDATED=true
+          fi
+          
+          if [ "$LANGUAGES_VALIDATED" == "false" ]; then
+            echo "No supported languages detected in changes. Skipping validation."
+          fi
 
   security-scan:
     runs-on: ubuntu-latest

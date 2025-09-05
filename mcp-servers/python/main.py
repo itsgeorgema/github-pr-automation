@@ -33,6 +33,7 @@ class ReviewResponse(BaseModel):
     suggestions: List[str]
     issues: List[str]
     overall_score: int
+    line_comments: List[Dict[str, str]] = []
 
 @app.post("/analyze-pr", response_model=ReviewResponse)
 async def analyze_pr(request: PRAnalysisRequest) -> ReviewResponse:
@@ -42,9 +43,14 @@ async def analyze_pr(request: PRAnalysisRequest) -> ReviewResponse:
         # Generate AI review
         review_data = await generate_ai_review(request)
         
-        # Post comment to GitHub (optional - can be done in GitHub Actions)
+        # Post comments to GitHub (optional - can be done in GitHub Actions)
         if request.github_token:
+            # Post overall summary comment
             await post_github_comment(request, review_data["review_comment"])
+            
+            # Post individual line comments
+            for line_comment in review_data.get("line_comments", []):
+                await post_line_comment(request, line_comment)
         
         return ReviewResponse(**review_data)
         
@@ -52,67 +58,75 @@ async def analyze_pr(request: PRAnalysisRequest) -> ReviewResponse:
         raise HTTPException(status_code=500, detail=str(e))
 
 async def generate_ai_review(request: PRAnalysisRequest) -> Dict:
-    """Generate AI-powered multi-language code review."""
+    """Generate AI-powered multi-language code review with chunking."""
     
     # Detect languages in changed files
     languages = detect_languages(request.changed_files)
     
-    # Prepare language-specific prompt
-    prompt = f"""
-    You are an expert multi-language code reviewer. Analyze this GitHub Pull Request containing {', '.join(languages)} code and provide a comprehensive review.
-
-    **PR Title:** {request.pr_title}
-    **Author:** {request.pr_author}
-    **Repository:** {request.repository}
-    **Languages Detected:** {', '.join(languages)}
-
-    **PR Description:**
-    {request.pr_body}
-
-    **Changed Files by Language:**
-    {format_files_by_language(request.changed_files)}
-
-    **Code Diff:**
-    ```diff
-    {request.diff_content}
-    ```
-
-    Please provide language-specific analysis:
+    # Chunk the diff content to avoid rate limits
+    diff_chunks = chunk_diff_content(request.diff_content)
     
-    **For JavaScript/TypeScript files:**
-    - React/Next.js best practices, TypeScript usage, async patterns
+    # Generate line-specific comments for each chunk
+    line_comments = []
+    overall_comment = ""
     
-    **For Python files:**
-    - PEP 8 compliance, type hints, security (SQL injection, XSS), performance
+    for i, chunk in enumerate(diff_chunks):
+        chunk_prompt = f"""**PR Title:** {request.pr_title}
+**Author:** {request.pr_author}
+**Languages:** {', '.join(languages)}
+
+**Code Diff Chunk {i+1}/{len(diff_chunks)}:**
+```diff
+{chunk}
+```
+
+Provide line-by-line comments using the specified format."""
+        
+        try:
+            if AI_PROVIDER == "anthropic" and anthropic_client:
+                chunk_response = await call_anthropic(chunk_prompt)
+            elif AI_PROVIDER == "openai" and openai_client:
+                chunk_response = await call_openai(chunk_prompt)
+            else:
+                chunk_response = generate_fallback_review(request)
+            
+            # Parse line-specific comments from the response
+            chunk_comments = parse_line_comments(chunk_response, i)
+            line_comments.extend(chunk_comments)
+            
+        except Exception as e:
+            print(f"Error processing chunk {i+1}: {e}")
+            continue
     
-    **For Java files:**
-    - Google Style Guide adherence, design patterns, thread safety, memory management
+    # Generate overall summary comment
+    summary_prompt = f"""**PR Title:** {request.pr_title}
+**Author:** {request.pr_author}
+**Languages:** {', '.join(languages)}
+**Description:** {request.pr_body}
+**Files Changed:** {', '.join(request.changed_files)}
+
+Provide a concise overall assessment with a 1-10 score."""
     
-    **For C++ files:**
-    - Modern C++ features, memory management, performance, RAII patterns
-    
-    **For SQL files:**
-    - Query optimization, injection prevention, indexing, normalization
+    try:
+        if AI_PROVIDER == "anthropic" and anthropic_client:
+            overall_response = await call_anthropic(summary_prompt)
+        elif AI_PROVIDER == "openai" and openai_client:
+            overall_response = await call_openai(summary_prompt)
+        else:
+            overall_response = generate_fallback_review(request)
+        
+        overall_comment = overall_response
+    except Exception as e:
+        print(f"Error generating overall summary: {e}")
+        overall_comment = generate_fallback_review(request)
 
-    Overall assessment:
-    1. Code quality per language
-    2. Cross-language integration issues
-    3. Security considerations per language
-    4. Performance implications
-    5. Language-specific best practices
-    6. Overall score (1-10)
-
-    Format your response as a detailed GitHub comment with markdown formatting and language-specific sections.
-    """
-
-    if AI_PROVIDER == "anthropic" and anthropic_client:
-        response = await call_anthropic(prompt)
-    elif AI_PROVIDER == "openai" and openai_client:
-        response = await call_openai(prompt)
-    else:
-        response = generate_fallback_review(request)
-
-    return parse_ai_response(response, request)
+    return {
+        "review_comment": overall_comment,
+        "line_comments": line_comments,
+        "suggestions": extract_suggestions(overall_comment),
+        "issues": extract_issues(overall_comment),
+        "overall_score": extract_score(overall_comment)
+    }
 
 async def call_anthropic(prompt: str) -> str:
     """Call Anthropic Claude API."""
@@ -155,6 +169,7 @@ async def call_openai(prompt: str) -> str:
         response = openai_client.responses.create(
             model="gpt-5",
             input=prompt,
+            instructions="You are an expert code reviewer. Analyze code diffs and provide specific, actionable feedback. Focus on code quality, security, performance, and best practices. Be constructive and helpful in your feedback. When providing line-by-line comments, use the format: LINE_COMMENT: [line_number]: [specific comment about that line]."
         )
         return response.output_text
     except Exception as e:
@@ -163,9 +178,12 @@ async def call_openai(prompt: str) -> str:
             chat = openai_client.chat.completions.create(
                 model="gpt-5",
                 messages=[{"role": "user", "content": prompt}],
-                temperature=0.1,
             )
-            return chat.choices[0].message.content or ""
+            # Handle both streaming and non-streaming responses
+            if hasattr(chat, 'choices') and chat.choices:
+                return chat.choices[0].message.content or ""
+            else:
+                return "Error: No response content received"
         except Exception as e2:
             print(f"OpenAI API error: {e}; Fallback error: {e2}")
             return "Error calling OpenAI API"
@@ -280,29 +298,124 @@ def generate_language_specific_fallback(languages: List[str]) -> str:
             checks.append("- **SQL**: SQLFluff linting and formatting checks passed")
     return "\n".join(checks)
 
-def parse_ai_response(response: str, request: PRAnalysisRequest) -> Dict:
-    """Parse AI response into structured data."""
+def chunk_diff_content(diff_content: str, max_chunk_size: int = 2000) -> List[str]:
+    """Chunk diff content to avoid rate limits while preserving context."""
+    if len(diff_content) <= max_chunk_size:
+        return [diff_content]
     
-    # Extract suggestions and issues (simplified parsing)
-    suggestions = []
-    issues = []
-    overall_score = 8  # Default score
+    chunks = []
+    lines = diff_content.split('\n')
+    current_chunk = []
+    current_size = 0
     
-    # This is a simplified parser - you might want to use more sophisticated parsing
+    for line in lines:
+        line_size = len(line) + 1  # +1 for newline
+        
+        # If adding this line would exceed the limit, start a new chunk
+        if current_size + line_size > max_chunk_size and current_chunk:
+            chunks.append('\n'.join(current_chunk))
+            current_chunk = [line]
+            current_size = line_size
+        else:
+            current_chunk.append(line)
+            current_size += line_size
+    
+    # Add the last chunk if it has content
+    if current_chunk:
+        chunks.append('\n'.join(current_chunk))
+    
+    return chunks
+
+def parse_line_comments(response: str, chunk_index: int) -> List[Dict[str, str]]:
+    """Parse line-specific comments from AI response."""
+    line_comments = []
     lines = response.split('\n')
-    current_section = None
     
     for line in lines:
         line = line.strip()
-        if 'suggestion' in line.lower():
-            current_section = 'suggestions'
-        elif 'issue' in line.lower() or 'problem' in line.lower():
-            current_section = 'issues'
-        elif line.startswith('- ') and current_section:
-            if current_section == 'suggestions':
+        if line.startswith('LINE_COMMENT:'):
+            # Extract line number and comment
+            parts = line.split(':', 2)
+            if len(parts) >= 3:
+                try:
+                    line_num = int(parts[1].strip())
+                    comment = parts[2].strip()
+                    line_comments.append({
+                        "line_number": line_num,
+                        "comment": comment,
+                        "chunk_index": chunk_index
+                    })
+                except ValueError:
+                    continue
+    
+    return line_comments
+
+def extract_suggestions(text: str) -> List[str]:
+    """Extract suggestions from text."""
+    suggestions = []
+    lines = text.split('\n')
+    
+    for line in lines:
+        line = line.strip()
+        if any(keyword in line.lower() for keyword in ['suggestion', 'recommend', 'consider', 'should']):
+            if line.startswith('- '):
                 suggestions.append(line[2:])
-            elif current_section == 'issues':
+            elif line.startswith('* '):
+                suggestions.append(line[2:])
+            else:
+                suggestions.append(line)
+    
+    return suggestions[:10]  # Limit to top 10 suggestions
+
+def extract_issues(text: str) -> List[str]:
+    """Extract issues from text."""
+    issues = []
+    lines = text.split('\n')
+    
+    for line in lines:
+        line = line.strip()
+        if any(keyword in line.lower() for keyword in ['issue', 'problem', 'error', 'bug', 'concern']):
+            if line.startswith('- '):
                 issues.append(line[2:])
+            elif line.startswith('* '):
+                issues.append(line[2:])
+            else:
+                issues.append(line)
+    
+    return issues[:10]  # Limit to top 10 issues
+
+def extract_score(text: str) -> int:
+    """Extract overall score from text."""
+    import re
+    
+    # Look for patterns like "score: 8", "8/10", "rating: 7", etc.
+    score_patterns = [
+        r'score[:\s]+(\d+)',
+        r'rating[:\s]+(\d+)',
+        r'(\d+)/10',
+        r'(\d+)\s*out\s*of\s*10',
+        r'overall[:\s]+(\d+)'
+    ]
+    
+    for pattern in score_patterns:
+        match = re.search(pattern, text.lower())
+        if match:
+            try:
+                score = int(match.group(1))
+                if 1 <= score <= 10:
+                    return score
+            except ValueError:
+                continue
+    
+    return 8  # Default score
+
+def parse_ai_response(response: str, request: PRAnalysisRequest) -> Dict:
+    """Parse AI response into structured data (legacy function for compatibility)."""
+    
+    # Extract suggestions and issues (simplified parsing)
+    suggestions = extract_suggestions(response)
+    issues = extract_issues(response)
+    overall_score = extract_score(response)
     
     return {
         "review_comment": response,
@@ -325,6 +438,68 @@ async def post_github_comment(request: PRAnalysisRequest, comment: str) -> None:
     async with httpx.AsyncClient() as client:
         response = await client.post(url, headers=headers, json=data)
         response.raise_for_status()
+
+async def post_line_comment(request: PRAnalysisRequest, line_comment: Dict[str, str]) -> None:
+    """Post a line-specific comment to GitHub PR."""
+    
+    # First, get the PR details to find the commit SHA and file path
+    pr_url = f"https://api.github.com/repos/{request.repository}/pulls/{request.pr_number}"
+    headers = {
+        "Authorization": f"token {request.github_token}",
+        "Accept": "application/vnd.github.v3+json"
+    }
+    
+    async with httpx.AsyncClient() as client:
+        # Get PR details
+        pr_response = await client.get(pr_url, headers=headers)
+        pr_response.raise_for_status()
+        pr_data = pr_response.json()
+        
+        # Get the diff to find the file path for the line comment
+        diff_url = f"https://api.github.com/repos/{request.repository}/pulls/{request.pr_number}.diff"
+        diff_response = await client.get(diff_url, headers=headers)
+        diff_response.raise_for_status()
+        diff_content = diff_response.text
+        
+        # Find the file path for the line number
+        file_path = find_file_path_for_line(diff_content, int(line_comment["line_number"]))
+        
+        if not file_path:
+            print(f"Could not find file path for line {line_comment['line_number']}")
+            return
+        
+        # Post the line comment
+        review_url = f"https://api.github.com/repos/{request.repository}/pulls/{request.pr_number}/reviews"
+        review_data = {
+            "body": f"🤖 **AI Code Review**\n\n{line_comment['comment']}",
+            "event": "COMMENT",
+            "comments": [{
+                "path": file_path,
+                "line": line_comment["line_number"],
+                "body": line_comment["comment"]
+            }]
+        }
+        
+        review_response = await client.post(review_url, headers=headers, json=review_data)
+        review_response.raise_for_status()
+
+def find_file_path_for_line(diff_content: str, line_number: int) -> str | None:
+    """Find the file path for a given line number in the diff."""
+    lines = diff_content.split('\n')
+    current_file = None
+    
+    for i, line in enumerate(lines):
+        if line.startswith('diff --git'):
+            # Extract file path from diff header
+            parts = line.split()
+            if len(parts) >= 4:
+                current_file = parts[3][2:]  # Remove 'b/' prefix
+        
+        # Check if we've reached the target line number
+        if current_file and i >= line_number:
+            return current_file
+    
+    return None
 
 @app.get("/health")
 async def health_check() -> Dict[str, Union[str, bool]]:

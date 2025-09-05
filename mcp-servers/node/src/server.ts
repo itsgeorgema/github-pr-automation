@@ -41,6 +41,11 @@ interface ReviewResponse {
   suggestions: string[];
   issues: string[];
   overall_score: number;
+  line_comments: Array<{
+    line_number: number;
+    comment: string;
+    chunk_index: number;
+  }>;
 }
 
 app.post('/analyze-pr', async (req: express.Request, res: express.Response) => {
@@ -52,7 +57,13 @@ app.post('/analyze-pr', async (req: express.Request, res: express.Response) => {
 
     // Optionally post to GitHub
     if (request.github_token) {
+      // Post overall summary comment
       await postGitHubComment(request, reviewData.review_comment);
+      
+      // Post individual line comments
+      for (const lineComment of reviewData.line_comments) {
+        await postLineComment(request, lineComment);
+      }
     }
 
     res.json(reviewData);
@@ -65,65 +76,76 @@ app.post('/analyze-pr', async (req: express.Request, res: express.Response) => {
 async function generateAIReview(request: PRAnalysisRequest): Promise<ReviewResponse> {
   const languages = detectLanguages(request.changed_files);
 
-  const prompt = `
-You are an expert multi-language code reviewer. Analyze this GitHub Pull Request containing ${languages.join(', ')} code and provide a comprehensive review.
+  // Chunk the diff content to avoid rate limits
+  const diffChunks = chunkDiffContent(request.diff_content);
+  
+  // Generate line-specific comments for each chunk
+  const lineComments: Array<{line_number: number; comment: string; chunk_index: number}> = [];
+  let overallComment = '';
 
-**PR Title:** ${request.pr_title}
+  for (let i = 0; i < diffChunks.length; i++) {
+    const chunk = diffChunks[i];
+    const chunkPrompt = `**PR Title:** ${request.pr_title}
 **Author:** ${request.pr_author}
-**Repository:** ${request.repository}
-**Languages Detected:** ${languages.join(', ')}
+**Languages:** ${languages.join(', ')}
 
-**PR Description:**
-${request.pr_body}
-
-**Changed Files by Language:**
-${formatFilesByLanguage(request.changed_files)}
-
-**Code Diff:**
+**Code Diff Chunk ${i + 1}/${diffChunks.length}:**
 \`\`\`diff
-${request.diff_content}
+${chunk}
 \`\`\`
 
-Please provide language-specific analysis:
+Provide line-by-line comments using the specified format.`;
 
-**For JavaScript/TypeScript files:**
-- React/Next.js best practices, TypeScript usage, async patterns
+    try {
+      let chunkResponse: string;
+      if (anthropic && process.env.AI_PROVIDER === 'anthropic') {
+        chunkResponse = await callAnthropic(chunkPrompt);
+      } else if (openai && process.env.AI_PROVIDER === 'openai') {
+        chunkResponse = await callOpenAI(chunkPrompt);
+      } else {
+        chunkResponse = generateFallbackReview(request);
+      }
 
-**For Python files:**
-- PEP 8 compliance, type hints, security (SQL injection, XSS), performance
-
-**For Java files:**
-- Google Style Guide adherence, design patterns, thread safety, memory management
-
-**For C++ files:**
-- Modern C++ features, memory management, performance, RAII patterns
-
-**For SQL files:**
-- Query optimization, injection prevention, indexing, normalization
-
-Overall assessment:
-1. Code quality per language
-2. Cross-language integration issues
-3. Security considerations per language
-4. Performance implications
-5. Language-specific best practices
-6. Overall score (1-10)
-
-Format your response as a detailed GitHub comment with markdown formatting and language-specific sections.
-Be constructive and helpful in your feedback.
-  `;
-
-  let response: string;
-
-  if (anthropic && process.env.AI_PROVIDER === 'anthropic') {
-    response = await callAnthropic(prompt);
-  } else if (openai && process.env.AI_PROVIDER === 'openai') {
-    response = await callOpenAI(prompt);
-  } else {
-    response = generateFallbackReview(request);
+      // Parse line-specific comments from the response
+      const chunkComments = parseLineComments(chunkResponse, i);
+      lineComments.push(...chunkComments);
+    } catch (error) {
+      console.error(`Error processing chunk ${i + 1}:`, error);
+      continue;
+    }
   }
 
-  return parseAIResponse(response, request);
+  // Generate overall summary comment
+  const summaryPrompt = `**PR Title:** ${request.pr_title}
+**Author:** ${request.pr_author}
+**Languages:** ${languages.join(', ')}
+**Description:** ${request.pr_body}
+**Files Changed:** ${request.changed_files.join(', ')}
+
+Provide a concise overall assessment with a 1-10 score.`;
+
+  try {
+    let overallResponse: string;
+    if (anthropic && process.env.AI_PROVIDER === 'anthropic') {
+      overallResponse = await callAnthropic(summaryPrompt);
+    } else if (openai && process.env.AI_PROVIDER === 'openai') {
+      overallResponse = await callOpenAI(summaryPrompt);
+    } else {
+      overallResponse = generateFallbackReview(request);
+    }
+    overallComment = overallResponse;
+  } catch (error) {
+    console.error('Error generating overall summary:', error);
+    overallComment = generateFallbackReview(request);
+  }
+
+  return {
+    review_comment: overallComment,
+    line_comments: lineComments,
+    suggestions: extractSuggestions(overallComment),
+    issues: extractIssues(overallComment),
+    overall_score: extractScore(overallComment)
+  };
 }
 
 async function callAnthropic(prompt: string): Promise<string> {
@@ -156,6 +178,7 @@ async function callOpenAI(prompt: string): Promise<string> {
     const response = await openai.responses.create({
       model: 'gpt-5',
       input: prompt,
+      instructions: 'You are an expert code reviewer. Analyze code diffs and provide specific, actionable feedback. Focus on code quality, security, performance, and best practices. Be constructive and helpful in your feedback. When providing line-by-line comments, use the format: LINE_COMMENT: [line_number]: [specific comment about that line].'
     });
 
     return (response as any).output_text as string;
@@ -294,37 +317,16 @@ function generateLanguageSpecificFallback(languages: string[]): string {
 
 function parseAIResponse(response: string, _request: PRAnalysisRequest): ReviewResponse {
   // Simplified parsing - enhance as needed
-  const suggestions: string[] = [];
-  const issues: string[] = [];
-  const overall_score = 8;
-
-  // This is a simplified parser - you might want to use more sophisticated parsing
-  const lines = response.split('\n');
-  let currentSection: string | null = null;
-
-  for (const line of lines) {
-    const trimmedLine = line.trim();
-    if (trimmedLine.toLowerCase().includes('suggestion')) {
-      currentSection = 'suggestions';
-    } else if (
-      trimmedLine.toLowerCase().includes('issue') ||
-      trimmedLine.toLowerCase().includes('problem')
-    ) {
-      currentSection = 'issues';
-    } else if (trimmedLine.startsWith('- ') && currentSection) {
-      if (currentSection === 'suggestions') {
-        suggestions.push(trimmedLine.substring(2));
-      } else if (currentSection === 'issues') {
-        issues.push(trimmedLine.substring(2));
-      }
-    }
-  }
+  const suggestions = extractSuggestions(response);
+  const issues = extractIssues(response);
+  const overall_score = extractScore(response);
 
   return {
     review_comment: response,
     suggestions,
     issues,
     overall_score,
+    line_comments: [], // Empty for legacy compatibility
   };
 }
 
@@ -347,6 +349,80 @@ async function postGitHubComment(request: PRAnalysisRequest, comment: string): P
   }
 }
 
+async function postLineComment(request: PRAnalysisRequest, lineComment: {line_number: number; comment: string; chunk_index: number}): Promise<void> {
+  try {
+    // Get PR details to find the commit SHA and file path
+    const prUrl = `https://api.github.com/repos/${request.repository}/pulls/${request.pr_number}`;
+    const prResponse = await axios.get(prUrl, {
+      headers: {
+        Authorization: `token ${request.github_token}`,
+        Accept: 'application/vnd.github.v3+json',
+      },
+    });
+
+    // Get the diff to find the file path for the line comment
+    const diffUrl = `https://api.github.com/repos/${request.repository}/pulls/${request.pr_number}.diff`;
+    const diffResponse = await axios.get(diffUrl, {
+      headers: {
+        Authorization: `token ${request.github_token}`,
+        Accept: 'application/vnd.github.v3+json',
+      },
+    });
+
+    const diffContent = diffResponse.data as string;
+    const filePath = findFilePathForLine(diffContent, lineComment.line_number);
+
+    if (!filePath) {
+      console.log(`Could not find file path for line ${lineComment.line_number}`);
+      return;
+    }
+
+    // Post the line comment as a review
+    const reviewUrl = `https://api.github.com/repos/${request.repository}/pulls/${request.pr_number}/reviews`;
+    const reviewData = {
+      body: `🤖 **AI Code Review**\n\n${lineComment.comment}`,
+      event: 'COMMENT',
+      comments: [{
+        path: filePath,
+        line: lineComment.line_number,
+        body: lineComment.comment,
+      }],
+    };
+
+    await axios.post(reviewUrl, reviewData, {
+      headers: {
+        Authorization: `token ${request.github_token}`,
+        Accept: 'application/vnd.github.v3+json',
+      },
+    });
+  } catch (error) {
+    console.error('Error posting line comment:', error);
+  }
+}
+
+function findFilePathForLine(diffContent: string, lineNumber: number): string | null {
+  const lines = diffContent.split('\n');
+  let currentFile: string | null = null;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (line.startsWith('diff --git')) {
+      // Extract file path from diff header
+      const parts = line.split(' ');
+      if (parts.length >= 4) {
+        currentFile = parts[3].substring(2); // Remove 'b/' prefix
+      }
+    }
+
+    // Check if we've reached the target line number
+    if (currentFile && i >= lineNumber) {
+      return currentFile;
+    }
+  }
+
+  return null;
+}
+
 app.get('/health', (_req, res) => {
   res.json({
     status: 'healthy',
@@ -355,6 +431,138 @@ app.get('/health', (_req, res) => {
     openai_available: !!openai,
   });
 });
+
+// Helper functions for chunking and parsing
+function chunkDiffContent(diffContent: string, maxChunkSize: number = 2000): string[] {
+  if (diffContent.length <= maxChunkSize) {
+    return [diffContent];
+  }
+
+  const chunks: string[] = [];
+  const lines = diffContent.split('\n');
+  let currentChunk: string[] = [];
+  let currentSize = 0;
+
+  for (const line of lines) {
+    const lineSize = line.length + 1; // +1 for newline
+
+    // If adding this line would exceed the limit, start a new chunk
+    if (currentSize + lineSize > maxChunkSize && currentChunk.length > 0) {
+      chunks.push(currentChunk.join('\n'));
+      currentChunk = [line];
+      currentSize = lineSize;
+    } else {
+      currentChunk.push(line);
+      currentSize += lineSize;
+    }
+  }
+
+  // Add the last chunk if it has content
+  if (currentChunk.length > 0) {
+    chunks.push(currentChunk.join('\n'));
+  }
+
+  return chunks;
+}
+
+function parseLineComments(response: string, chunkIndex: number): Array<{line_number: number; comment: string; chunk_index: number}> {
+  const lineComments: Array<{line_number: number; comment: string; chunk_index: number}> = [];
+  const lines = response.split('\n');
+
+  for (const line of lines) {
+    const trimmedLine = line.trim();
+    if (trimmedLine.startsWith('LINE_COMMENT:')) {
+      // Extract line number and comment
+      const parts = trimmedLine.split(':', 3);
+      if (parts.length >= 3) {
+        try {
+          const lineNum = parseInt(parts[1].trim(), 10);
+          const comment = parts[2].trim();
+          lineComments.push({
+            line_number: lineNum,
+            comment: comment,
+            chunk_index: chunkIndex
+          });
+        } catch (error) {
+          // Skip invalid line numbers
+          continue;
+        }
+      }
+    }
+  }
+
+  return lineComments;
+}
+
+function extractSuggestions(text: string): string[] {
+  const suggestions: string[] = [];
+  const lines = text.split('\n');
+
+  for (const line of lines) {
+    const trimmedLine = line.trim();
+    if (trimmedLine.toLowerCase().includes('suggestion') || 
+        trimmedLine.toLowerCase().includes('recommend') ||
+        trimmedLine.toLowerCase().includes('consider') ||
+        trimmedLine.toLowerCase().includes('should')) {
+      if (trimmedLine.startsWith('- ')) {
+        suggestions.push(trimmedLine.substring(2));
+      } else if (trimmedLine.startsWith('* ')) {
+        suggestions.push(trimmedLine.substring(2));
+      } else {
+        suggestions.push(trimmedLine);
+      }
+    }
+  }
+
+  return suggestions.slice(0, 10); // Limit to top 10 suggestions
+}
+
+function extractIssues(text: string): string[] {
+  const issues: string[] = [];
+  const lines = text.split('\n');
+
+  for (const line of lines) {
+    const trimmedLine = line.trim();
+    if (trimmedLine.toLowerCase().includes('issue') ||
+        trimmedLine.toLowerCase().includes('problem') ||
+        trimmedLine.toLowerCase().includes('error') ||
+        trimmedLine.toLowerCase().includes('bug') ||
+        trimmedLine.toLowerCase().includes('concern')) {
+      if (trimmedLine.startsWith('- ')) {
+        issues.push(trimmedLine.substring(2));
+      } else if (trimmedLine.startsWith('* ')) {
+        issues.push(trimmedLine.substring(2));
+      } else {
+        issues.push(trimmedLine);
+      }
+    }
+  }
+
+  return issues.slice(0, 10); // Limit to top 10 issues
+}
+
+function extractScore(text: string): number {
+  // Look for patterns like "score: 8", "8/10", "rating: 7", etc.
+  const scorePatterns = [
+    /score[:\s]+(\d+)/i,
+    /rating[:\s]+(\d+)/i,
+    /(\d+)\/10/i,
+    /(\d+)\s*out\s*of\s*10/i,
+    /overall[:\s]+(\d+)/i
+  ];
+
+  for (const pattern of scorePatterns) {
+    const match = text.match(pattern);
+    if (match) {
+      const score = parseInt(match[1], 10);
+      if (score >= 1 && score <= 10) {
+        return score;
+      }
+    }
+  }
+
+  return 8; // Default score
+}
 
 app.listen(PORT, () => {
   console.log(`MCP Server running on port ${PORT}`);

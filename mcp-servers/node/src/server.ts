@@ -355,7 +355,7 @@ async function postLineComment(
   lineComment: { line_number: number; comment: string; chunk_index: number }
 ): Promise<void> {
   try {
-    // Get PR details to find the commit SHA
+    // Get PR details to find the commit SHA and file path
     const prUrl = `https://api.github.com/repos/${request.repository}/pulls/${request.pr_number}`;
     const prResponse = await axios.get(prUrl, {
       headers: {
@@ -364,10 +364,7 @@ async function postLineComment(
       },
     });
 
-    const prData = prResponse.data;
-    const commitSha = prData.head.sha;
-
-    // Get the diff to find the file path and position for the line comment
+    // Get the diff to find the file path for the line comment
     const diffUrl = `https://api.github.com/repos/${request.repository}/pulls/${request.pr_number}.diff`;
     const diffResponse = await axios.get(diffUrl, {
       headers: {
@@ -377,77 +374,59 @@ async function postLineComment(
     });
 
     const diffContent = diffResponse.data as string;
-    const { filePath, position } = findFileAndPositionForLine(diffContent, lineComment.line_number);
+    const filePath = findFilePathForLine(diffContent, lineComment.line_number);
 
-    if (!filePath || position === -1) {
-      console.log(`Could not find file path or position for line ${lineComment.line_number}`);
+    if (!filePath) {
+      console.log(`Could not find file path for line ${lineComment.line_number}`);
       return;
     }
 
-    // Post the line comment using the Review Comments API (not Reviews API)
-    const commentUrl = `https://api.github.com/repos/${request.repository}/pulls/${request.pr_number}/comments`;
-    const commentData = {
+    // Post the line comment as a review
+    const reviewUrl = `https://api.github.com/repos/${request.repository}/pulls/${request.pr_number}/reviews`;
+    const reviewData = {
       body: `🤖 **AI Code Review**\n\n${lineComment.comment}`,
-      path: filePath,
-      line: lineComment.line_number,
-      side: 'RIGHT', // Comment on the new version of the file
-      commit_id: commitSha,
+      event: 'COMMENT',
+      comments: [
+        {
+          path: filePath,
+          line: lineComment.line_number,
+          body: lineComment.comment,
+        },
+      ],
     };
 
-    await axios.post(commentUrl, commentData, {
+    await axios.post(reviewUrl, reviewData, {
       headers: {
         Authorization: `token ${request.github_token}`,
         Accept: 'application/vnd.github.v3+json',
       },
     });
-
-    console.log(`Posted line comment for line ${lineComment.line_number} in ${filePath}`);
   } catch (error) {
     console.error('Error posting line comment:', error);
   }
 }
 
-function findFileAndPositionForLine(diffContent: string, lineNumber: number): { filePath: string | null; position: number } {
+function findFilePathForLine(diffContent: string, lineNumber: number): string | null {
   const lines = diffContent.split('\n');
   let currentFile: string | null = null;
-  let currentPosition = 0;
-  let inHunk = false;
-  let hunkStartLine = 0;
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
-    
     if (line.startsWith('diff --git')) {
       // Extract file path from diff header
       const parts = line.split(' ');
       if (parts.length >= 4) {
         currentFile = parts[3].substring(2); // Remove 'b/' prefix
       }
-      inHunk = false;
-      currentPosition = 0;
-    } else if (line.startsWith('@@')) {
-      // Found a hunk header
-      inHunk = true;
-      const match = line.match(/@@ -(\d+),?\d* \+(\d+),?\d* @@/);
-      if (match) {
-        hunkStartLine = parseInt(match[2], 10);
-        currentPosition = 0;
-      }
-    } else if (inHunk && currentFile) {
-      // We're in a hunk, check if this is the target line
-      if (line.startsWith('+')) {
-        currentPosition++;
-        if (hunkStartLine + currentPosition - 1 === lineNumber) {
-          return { filePath: currentFile, position: currentPosition };
-        }
-      } else if (line.startsWith('-') || line.startsWith(' ')) {
-        // Skip deleted lines and context lines
-        continue;
-      }
+    }
+
+    // Check if we've reached the target line number
+    if (currentFile && i >= lineNumber) {
+      return currentFile;
     }
   }
 
-  return { filePath: null, position: -1 };
+  return null;
 }
 
 app.get('/health', (_req, res) => {

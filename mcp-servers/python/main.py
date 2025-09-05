@@ -473,9 +473,9 @@ async def post_github_comment(request: PRAnalysisRequest, comment: str) -> None:
 
 
 async def post_line_comment(request: PRAnalysisRequest, line_comment: Dict[str, str]) -> None:
-    """Post a line-specific comment to GitHub PR using Review Comments API."""
+    """Post a line-specific comment to GitHub PR."""
 
-    # First, get the PR details to find the commit SHA
+    # First, get the PR details to find the commit SHA and file path
     pr_url = f"https://api.github.com/repos/{request.repository}/pulls/{request.pr_number}"
     headers = {
         "Authorization": f"token {request.github_token}",
@@ -486,10 +486,8 @@ async def post_line_comment(request: PRAnalysisRequest, line_comment: Dict[str, 
         # Get PR details
         pr_response = await client.get(pr_url, headers=headers)
         pr_response.raise_for_status()
-        pr_data = pr_response.json()
-        commit_sha = pr_data["head"]["sha"]
 
-        # Get the diff to find the file path and position for the line comment
+        # Get the diff to find the file path for the line comment
         diff_url = (
             f"https://api.github.com/repos/{request.repository}/pulls/{request.pr_number}.diff"
         )
@@ -497,38 +495,37 @@ async def post_line_comment(request: PRAnalysisRequest, line_comment: Dict[str, 
         diff_response.raise_for_status()
         diff_content = diff_response.text
 
-        # Find the file path and position for the line number
-        file_path, position = find_file_and_position_for_line(diff_content, int(line_comment["line_number"]))
+        # Find the file path for the line number
+        file_path = find_file_path_for_line(diff_content, int(line_comment["line_number"]))
 
-        if not file_path or position == -1:
-            print(f"Could not find file path or position for line {line_comment['line_number']}")
+        if not file_path:
+            print(f"Could not find file path for line {line_comment['line_number']}")
             return
 
-        # Post the line comment using Review Comments API (not Reviews API)
-        comment_url = (
-            f"https://api.github.com/repos/{request.repository}/pulls/{request.pr_number}/comments"
+        # Post the line comment
+        review_url = (
+            f"https://api.github.com/repos/{request.repository}/pulls/{request.pr_number}/reviews"
         )
-        comment_data = {
+        review_data = {
             "body": f"🤖 **AI Code Review**\n\n{line_comment['comment']}",
-            "path": file_path,
-            "line": line_comment["line_number"],
-            "side": "RIGHT",  # Comment on the new version of the file
-            "commit_id": commit_sha,
+            "event": "COMMENT",
+            "comments": [
+                {
+                    "path": file_path,
+                    "line": line_comment["line_number"],
+                    "body": line_comment["comment"],
+                }
+            ],
         }
 
-        comment_response = await client.post(comment_url, headers=headers, json=comment_data)
-        comment_response.raise_for_status()
-        
-        print(f"Posted line comment for line {line_comment['line_number']} in {file_path}")
+        review_response = await client.post(review_url, headers=headers, json=review_data)
+        review_response.raise_for_status()
 
 
-def find_file_and_position_for_line(diff_content: str, line_number: int) -> tuple[str | None, int]:
-    """Find the file path and position for a given line number in the diff."""
+def find_file_path_for_line(diff_content: str, line_number: int) -> str | None:
+    """Find the file path for a given line number in the diff."""
     lines = diff_content.split("\n")
     current_file = None
-    current_position = 0
-    in_hunk = False
-    hunk_start_line = 0
 
     for i, line in enumerate(lines):
         if line.startswith("diff --git"):
@@ -536,27 +533,12 @@ def find_file_and_position_for_line(diff_content: str, line_number: int) -> tupl
             parts = line.split()
             if len(parts) >= 4:
                 current_file = parts[3][2:]  # Remove 'b/' prefix
-            in_hunk = False
-            current_position = 0
-        elif line.startswith("@@"):
-            # Found a hunk header
-            in_hunk = True
-            import re
-            match = re.match(r"@@ -(\d+),?\d* \+(\d+),?\d* @@", line)
-            if match:
-                hunk_start_line = int(match.group(2))
-                current_position = 0
-        elif in_hunk and current_file:
-            # We're in a hunk, check if this is the target line
-            if line.startswith("+"):
-                current_position += 1
-                if hunk_start_line + current_position - 1 == line_number:
-                    return current_file, current_position
-            elif line.startswith("-") or line.startswith(" "):
-                # Skip deleted lines and context lines
-                continue
 
-    return None, -1
+        # Check if we've reached the target line number
+        if current_file and i >= line_number:
+            return current_file
+
+    return None
 
 
 @app.get("/health")

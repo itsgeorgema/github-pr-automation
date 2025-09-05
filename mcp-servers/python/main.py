@@ -1,8 +1,6 @@
-import asyncio
-import json
 import os
-from typing import Dict, List, Optional
-from fastapi import FastAPI, HTTPException, Header
+from typing import Dict, List, Optional, Union
+from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 import httpx
 from anthropic import Anthropic
@@ -37,7 +35,7 @@ class ReviewResponse(BaseModel):
     overall_score: int
 
 @app.post("/analyze-pr", response_model=ReviewResponse)
-async def analyze_pr(request: PRAnalysisRequest):
+async def analyze_pr(request: PRAnalysisRequest) -> ReviewResponse:
     """Analyze a GitHub PR and generate an AI review."""
     
     try:
@@ -128,7 +126,22 @@ async def call_anthropic(prompt: str) -> str:
             temperature=0.1,
             messages=[{"role": "user", "content": prompt}]
         )
-        return message.content[0].text
+        # Handle different content types safely
+        content = message.content[0]
+        # Use getattr with a default to safely access text attribute
+        text_content = getattr(content, 'text', None)
+        if text_content is not None and isinstance(text_content, str):
+            return text_content
+        else:
+            # Fallback to string representation for other content types
+            if content is not None:
+                try:
+                    result = str(content)  # type: ignore[no-any-return]
+                    return result
+                except Exception:
+                    return "Error converting content to string"
+            else:
+                return "No content received"
     except Exception as e:
         print(f"Anthropic API error: {e}")
         return "Error calling Anthropic API"
@@ -181,7 +194,7 @@ def generate_fallback_review(request: PRAnalysisRequest) -> str:
 {format_files_by_language_fallback(request.changed_files)}
 
 ### Language-Specific Checks:
-{generate_language_specific_fallback(languages)}
+{generate_language_specific_fallback(list(languages))}
 
 ### Recommendations:
 - Code follows established patterns for all languages
@@ -191,7 +204,7 @@ def generate_fallback_review(request: PRAnalysisRequest) -> str:
 *Note: AI-powered analysis is currently unavailable. This is a comprehensive fallback review based on automated tooling results.*
     """
 
-def detect_languages(files):
+def detect_languages(files: List[str]) -> set[str]:
     """Detect programming languages from file extensions."""
     languages = set()
     for file in files:
@@ -205,11 +218,11 @@ def detect_languages(files):
             languages.add('C++')
         elif file.endswith('.sql'):
             languages.add('SQL')
-    return list(languages)
+    return languages
 
-def format_files_by_language(files):
+def format_files_by_language(files: List[str]) -> str:
     """Format files grouped by language."""
-    by_lang = {}
+    by_lang: Dict[str, List[str]] = {}
     for file in files:
         if file.endswith(('.js', '.jsx', '.ts', '.tsx')):
             by_lang.setdefault('JavaScript/TypeScript', []).append(file)
@@ -229,9 +242,9 @@ def format_files_by_language(files):
         result += "\n"
     return result
 
-def format_files_by_language_fallback(files):
+def format_files_by_language_fallback(files: List[str]) -> str:
     """Format files grouped by language for fallback review."""
-    by_lang = {}
+    by_lang: Dict[str, List[str]] = {}
     for file in files:
         if file.endswith(('.js', '.jsx', '.ts', '.tsx')):
             by_lang.setdefault('JavaScript/TypeScript', []).append(file)
@@ -251,7 +264,7 @@ def format_files_by_language_fallback(files):
         result += "\n"
     return result
 
-def generate_language_specific_fallback(languages):
+def generate_language_specific_fallback(languages: List[str]) -> str:
     """Generate language-specific check results for fallback."""
     checks = []
     for lang in languages:
@@ -298,7 +311,7 @@ def parse_ai_response(response: str, request: PRAnalysisRequest) -> Dict:
         "overall_score": overall_score
     }
 
-async def post_github_comment(request: PRAnalysisRequest, comment: str):
+async def post_github_comment(request: PRAnalysisRequest, comment: str) -> None:
     """Post review comment to GitHub PR."""
     
     url = f"https://api.github.com/repos/{request.repository}/issues/{request.pr_number}/comments"
@@ -314,7 +327,7 @@ async def post_github_comment(request: PRAnalysisRequest, comment: str):
         response.raise_for_status()
 
 @app.get("/health")
-async def health_check():
+async def health_check() -> Dict[str, Union[str, bool]]:
     """Health check endpoint."""
     return {
         "status": "healthy",

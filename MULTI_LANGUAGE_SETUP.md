@@ -1,22 +1,24 @@
 # Multi-Language Support Guide
 
-This guide covers the comprehensive multi-language support for JavaScript/TypeScript, Python, Java, C++, and SQL in the Watchdog system.
+This guide covers the comprehensive multi-language support for
+JavaScript/TypeScript, Python, Java, C++, and SQL in the Watchdog system.
 
 ## Supported Languages & Tools
 
-| Language | Linter | Formatter | Security | Type Checker |
-|----------|--------|-----------|----------|--------------|
-| **JavaScript/TypeScript** | ESLint | Prettier | - | TypeScript |
-| **Python** | Flake8 | Black + isort | Bandit + Safety | MyPy |
-| **Java** | Checkstyle | Google Java Format | - | javac |
-| **C++** | Clang-Tidy | Clang-Format | - | - |
-| **SQL** | SQLFluff | SQLFluff | - | - |
+| Language                  | Linter     | Formatter          | Security        | Type Checker |
+| ------------------------- | ---------- | ------------------ | --------------- | ------------ |
+| **JavaScript/TypeScript** | ESLint     | Prettier           | -               | TypeScript   |
+| **Python**                | Flake8     | Black + isort      | Bandit + Safety | MyPy         |
+| **Java**                  | Checkstyle | Google Java Format | -               | javac        |
+| **C++**                   | Clang-Tidy | Clang-Format       | -               | -            |
+| **SQL**                   | SQLFluff   | SQLFluff           | -               | -            |
 
 ## Quick Start
 
 ### 1. Install Dependencies
 
-The GitHub Actions workflow automatically installs all required tools. For local development:
+The GitHub Actions workflow automatically installs all required tools. For local
+development:
 
 ```bash
 # Node.js dependencies
@@ -67,6 +69,7 @@ npm run format:sql     # SQL
 ### Python Configuration
 
 **`.flake8`** - Python linting configuration:
+
 ```ini
 [flake8]
 max-line-length = 100
@@ -76,6 +79,7 @@ max-complexity = 10
 ```
 
 **`pyproject.toml`** - Black, isort, mypy configuration:
+
 ```toml
 [tool.black]
 line-length = 100
@@ -94,6 +98,7 @@ disallow_untyped_defs = true
 ### Java Configuration
 
 **`checkstyle.xml`** - Java linting rules based on Google Style Guide:
+
 - Line length: 120 characters
 - Indentation: 2 spaces
 - Naming conventions enforced
@@ -103,6 +108,7 @@ disallow_untyped_defs = true
 ### C++ Configuration
 
 **`.clang-format`** - C++ formatting based on Google Style:
+
 ```yaml
 BasedOnStyle: Google
 IndentWidth: 2
@@ -111,6 +117,7 @@ PointerAlignment: Left
 ```
 
 **`.clang-tidy`** - C++ linting rules:
+
 - Comprehensive checks enabled
 - Google naming conventions
 - Modern C++ best practices
@@ -119,6 +126,7 @@ PointerAlignment: Left
 ### SQL Configuration
 
 **`.sqlfluff`** - SQL linting and formatting:
+
 ```ini
 [sqlfluff]
 dialect = postgres
@@ -133,12 +141,14 @@ tab_space_size = 2
 ## Language-Specific Features
 
 ### JavaScript/TypeScript
+
 - **ESLint**: Comprehensive rules for React, Next.js, Node.js
 - **Prettier**: Universal formatting with file-type overrides
 - **TypeScript**: Strict type checking with path mapping
 - **Import sorting**: Automatic import organization
 
 ### Python
+
 - **Flake8**: PEP 8 compliance with custom extensions
 - **Black**: Uncompromising code formatter
 - **isort**: Import sorting compatible with Black
@@ -147,18 +157,21 @@ tab_space_size = 2
 - **Safety**: Dependency vulnerability checking
 
 ### Java
+
 - **Checkstyle**: Google Java Style Guide enforcement
 - **Google Java Format**: Consistent code formatting
 - **Import organization**: Automatic import sorting
 - **Javadoc validation**: Documentation completeness
 
 ### C++
+
 - **Clang-Tidy**: Comprehensive static analysis
 - **Clang-Format**: Google C++ style formatting
 - **Modern C++**: C++11/14/17/20 best practices
 - **Performance checks**: Optimization recommendations
 
 ### SQL
+
 - **SQLFluff**: Multi-dialect SQL linting
 - **Formatting**: Consistent SQL style
 - **Templating**: Jinja template support
@@ -178,6 +191,7 @@ tab_space_size = 2
 ### Parallel Execution
 
 The workflow runs language checks in parallel where possible:
+
 - Node.js and Python setup run simultaneously
 - Linting checks run in sequence but quickly
 - Security scans run independently
@@ -190,19 +204,20 @@ The workflow runs language checks in parallel where possible:
 
 ## File Type Support
 
-| Extension | Language | Tools Applied |
-|-----------|----------|---------------|
-| `.js`, `.jsx` | JavaScript | ESLint, Prettier |
-| `.ts`, `.tsx` | TypeScript | ESLint, Prettier, TSC |
-| `.py` | Python | Flake8, Black, isort, MyPy, Bandit |
-| `.java` | Java | Checkstyle, Google Java Format |
-| `.cpp`, `.hpp`, `.c`, `.h` | C++ | Clang-Tidy, Clang-Format |
-| `.sql` | SQL | SQLFluff |
-| `.json`, `.yaml`, `.md` | Data/Docs | Prettier, ESLint |
+| Extension                  | Language   | Tools Applied                      |
+| -------------------------- | ---------- | ---------------------------------- |
+| `.js`, `.jsx`              | JavaScript | ESLint, Prettier                   |
+| `.ts`, `.tsx`              | TypeScript | ESLint, Prettier, TSC              |
+| `.py`                      | Python     | Flake8, Black, isort, MyPy, Bandit |
+| `.java`                    | Java       | Checkstyle, Google Java Format     |
+| `.cpp`, `.hpp`, `.c`, `.h` | C++        | Clang-Tidy, Clang-Format           |
+| `.sql`                     | SQL        | SQLFluff                           |
+| `.json`, `.yaml`, `.md`    | Data/Docs  | Prettier, ESLint                   |
 
 ## Project Structure Examples
 
 ### Full-Stack Project
+
 ```
 project/
 ├── frontend/           # React/TypeScript
@@ -220,6 +235,7 @@ project/
 ```
 
 ### Configuration Priority
+
 1. **Language-specific configs** take precedence
 2. **Global configs** apply to all files
 3. **Override patterns** for special cases
@@ -233,7 +249,7 @@ Add project-specific rules to any configuration file:
 ```python
 # Python - Custom flake8 rules
 [flake8]
-per-file-ignores = 
+per-file-ignores =
     tests/*:S101  # Allow assert in tests
     __init__.py:F401  # Allow unused imports
 ```
@@ -249,6 +265,7 @@ per-file-ignores =
 ### Environment-Specific Settings
 
 Different rules for different environments:
+
 - **Development**: More lenient rules
 - **Production**: Stricter enforcement
 - **Testing**: Special allowances
@@ -256,6 +273,7 @@ Different rules for different environments:
 ### IDE Integration
 
 Most IDEs support these configurations:
+
 - **VSCode**: Extensions for each language
 - **IntelliJ**: Built-in support for Java, plugins for others
 - **Vim/Neovim**: Language server protocol support
@@ -266,6 +284,7 @@ Most IDEs support these configurations:
 ### Common Issues
 
 **Python tools not found:**
+
 ```bash
 # Ensure Python tools are in PATH
 pip install --user flake8 black isort
@@ -273,18 +292,21 @@ export PATH=$PATH:~/.local/bin
 ```
 
 **Java tools missing:**
+
 ```bash
 # Download tools manually if needed
 wget https://github.com/checkstyle/checkstyle/releases/latest/download/checkstyle-*-all.jar
 ```
 
 **C++ tools unavailable:**
+
 ```bash
 # Install LLVM/Clang suite
 sudo apt-get install llvm clang clang-tools
 ```
 
 **SQL dialect issues:**
+
 ```ini
 # Specify correct dialect in .sqlfluff
 [sqlfluff]
@@ -294,11 +316,13 @@ dialect = mysql  # or postgres, sqlite, etc.
 ### Performance Optimization
 
 **Large repositories:**
+
 - Use `.gitignore` patterns to exclude build artifacts
 - Configure tool-specific ignore files
 - Run tools on changed files only in development
 
 **Slow workflows:**
+
 - Enable caching for all package managers
 - Use parallel job execution
 - Skip tools for languages not present in repository
@@ -306,12 +330,14 @@ dialect = mysql  # or postgres, sqlite, etc.
 ### Custom Integration
 
 **Add new languages:**
+
 1. Add linting/formatting commands to `package.json`
 2. Update GitHub Actions workflow
 3. Add configuration files
 4. Update ignore patterns
 
 **Modify existing rules:**
+
 1. Edit configuration files
 2. Test locally before committing
 3. Document changes in project README
@@ -319,12 +345,14 @@ dialect = mysql  # or postgres, sqlite, etc.
 ## Metrics and Reporting
 
 ### Code Quality Metrics
+
 - Lines of code per language
 - Linting errors/warnings trends
 - Code coverage (where applicable)
 - Security vulnerability counts
 
 ### Workflow Metrics
+
 - Average workflow execution time
 - Success/failure rates per language
 - Most common issues found
@@ -333,11 +361,13 @@ dialect = mysql  # or postgres, sqlite, etc.
 ## Security Considerations
 
 ### Python Security
+
 - **Bandit**: Scans for common security issues
 - **Safety**: Checks dependencies for known vulnerabilities
 - **Dependency pinning**: Lock file verification
 
 ### General Security
+
 - **Secrets scanning**: No hardcoded credentials
 - **Dependency updates**: Regular security updates
 - **Access control**: Minimal required permissions
@@ -347,26 +377,33 @@ dialect = mysql  # or postgres, sqlite, etc.
 ## Language-Specific Resources
 
 ### JavaScript/TypeScript
+
 - [ESLint Rules](https://eslint.org/docs/rules/)
 - [Prettier Configuration](https://prettier.io/docs/en/configuration.html)
 - [TypeScript Compiler Options](https://www.typescriptlang.org/tsconfig)
 
 ### Python
+
 - [Flake8 Documentation](https://flake8.pycqa.org/)
 - [Black Code Style](https://black.readthedocs.io/)
 - [MyPy Type Checking](https://mypy.readthedocs.io/)
 
 ### Java
+
 - [Checkstyle Checks](https://checkstyle.sourceforge.io/checks.html)
 - [Google Java Style Guide](https://google.github.io/styleguide/javaguide.html)
 
 ### C++
+
 - [Clang-Tidy Checks](https://clang.llvm.org/extra/clang-tidy/checks/list.html)
 - [Clang-Format Options](https://clang.llvm.org/docs/ClangFormatStyleOptions.html)
 - [Google C++ Style Guide](https://google.github.io/styleguide/cppguide.html)
 
 ### SQL
+
 - [SQLFluff Rules](https://docs.sqlfluff.com/en/stable/rules.html)
 - [SQL Style Guide](https://www.sqlstyle.guide/)
 
-This multi-language setup provides comprehensive code quality assurance across your entire technology stack while maintaining consistency and best practices for each language.
+This multi-language setup provides comprehensive code quality assurance across
+your entire technology stack while maintaining consistency and best practices
+for each language.

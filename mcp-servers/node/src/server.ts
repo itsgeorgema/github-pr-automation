@@ -17,7 +17,7 @@ app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 
 // AI Clients
-const anthropic = process.env.ANTHROPIC_API_KEY 
+const anthropic = process.env.ANTHROPIC_API_KEY
   ? new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
   : null;
 
@@ -46,15 +46,15 @@ interface ReviewResponse {
 app.post('/analyze-pr', async (req: express.Request, res: express.Response) => {
   try {
     const request: PRAnalysisRequest = req.body;
-    
+
     // Generate AI review
     const reviewData = await generateAIReview(request);
-    
+
     // Optionally post to GitHub
     if (request.github_token) {
       await postGitHubComment(request, reviewData.review_comment);
     }
-    
+
     res.json(reviewData);
   } catch (error) {
     console.error('Error analyzing PR:', error);
@@ -64,7 +64,7 @@ app.post('/analyze-pr', async (req: express.Request, res: express.Response) => {
 
 async function generateAIReview(request: PRAnalysisRequest): Promise<ReviewResponse> {
   const languages = detectLanguages(request.changed_files);
-  
+
   const prompt = `
 You are an expert multi-language code reviewer. Analyze this GitHub Pull Request containing ${languages.join(', ')} code and provide a comprehensive review.
 
@@ -114,7 +114,7 @@ Be constructive and helpful in your feedback.
   `;
 
   let response: string;
-  
+
   if (anthropic && process.env.AI_PROVIDER === 'anthropic') {
     response = await callAnthropic(prompt);
   } else if (openai && process.env.AI_PROVIDER === 'openai') {
@@ -130,7 +130,7 @@ async function callAnthropic(prompt: string): Promise<string> {
   if (!anthropic) {
     return 'Anthropic client not initialized';
   }
-  
+
   try {
     const message = await anthropic.messages.create({
       model: 'claude-sonnet-4-20250514',
@@ -138,7 +138,7 @@ async function callAnthropic(prompt: string): Promise<string> {
       temperature: 0.1,
       messages: [{ role: 'user', content: prompt }],
     });
-    
+
     return message.content[0].type === 'text' ? message.content[0].text : '';
   } catch (error) {
     console.error('Anthropic API error:', error);
@@ -150,7 +150,7 @@ async function callOpenAI(prompt: string): Promise<string> {
   if (!openai) {
     return 'OpenAI client not initialized';
   }
-  
+
   try {
     // Try GPT-5 Responses API first (typed)
     const response = await openai.responses.create({
@@ -161,7 +161,7 @@ async function callOpenAI(prompt: string): Promise<string> {
     return (response as any).output_text as string;
   } catch (error) {
     console.error('OpenAI Responses API error:', error);
-    
+
     // Fallback to chat completions API
     try {
       const completion = await openai.chat.completions.create({
@@ -170,7 +170,7 @@ async function callOpenAI(prompt: string): Promise<string> {
         max_completion_tokens: 4000,
         temperature: 0.1,
       });
-      
+
       return completion.choices[0].message.content || '';
     } catch (fallbackError) {
       console.error('OpenAI fallback API error:', fallbackError);
@@ -181,7 +181,7 @@ async function callOpenAI(prompt: string): Promise<string> {
 
 function generateFallbackReview(request: PRAnalysisRequest): string {
   const languages = detectLanguages(request.changed_files);
-  
+
   return `
 ## 🤖 AI Code Review
 
@@ -215,7 +215,7 @@ ${generateLanguageSpecificFallback(languages)}
 
 function detectLanguages(files: string[]): string[] {
   const languages = new Set<string>();
-  
+
   for (const file of files) {
     if (file.match(/\.(js|jsx|ts|tsx)$/)) {
       languages.add('JavaScript/TypeScript');
@@ -229,13 +229,13 @@ function detectLanguages(files: string[]): string[] {
       languages.add('SQL');
     }
   }
-  
+
   return Array.from(languages);
 }
 
 function formatFilesByLanguage(files: string[]): string {
   const byLang: Record<string, string[]> = {};
-  
+
   for (const file of files) {
     if (file.match(/\.(js|jsx|ts|tsx)$/)) {
       (byLang['JavaScript/TypeScript'] = byLang['JavaScript/TypeScript'] || []).push(file);
@@ -249,14 +249,14 @@ function formatFilesByLanguage(files: string[]): string {
       (byLang['SQL'] = byLang['SQL'] || []).push(file);
     }
   }
-  
+
   let result = '';
   for (const [lang, langFiles] of Object.entries(byLang)) {
     result += `\n**${lang}:**\n`;
     result += langFiles.map(f => `- \`${f}\``).join('\n');
     result += '\n';
   }
-  
+
   return result;
 }
 
@@ -266,11 +266,13 @@ function formatFilesByLanguageFallback(files: string[]): string {
 
 function generateLanguageSpecificFallback(languages: string[]): string {
   const checks: string[] = [];
-  
+
   for (const lang of languages) {
     switch (lang) {
       case 'JavaScript/TypeScript':
-        checks.push('- **JavaScript/TypeScript**: ESLint + Prettier + TypeScript compiler checks passed');
+        checks.push(
+          '- **JavaScript/TypeScript**: ESLint + Prettier + TypeScript compiler checks passed'
+        );
         break;
       case 'Python':
         checks.push('- **Python**: Flake8 + Black + isort + MyPy + Bandit security checks passed');
@@ -286,11 +288,11 @@ function generateLanguageSpecificFallback(languages: string[]): string {
         break;
     }
   }
-  
+
   return checks.join('\n');
 }
 
-function parseAIResponse(response: string, request: PRAnalysisRequest): ReviewResponse {
+function parseAIResponse(response: string, _request: PRAnalysisRequest): ReviewResponse {
   // Simplified parsing - enhance as needed
   const suggestions: string[] = [];
   const issues: string[] = [];
@@ -299,12 +301,15 @@ function parseAIResponse(response: string, request: PRAnalysisRequest): ReviewRe
   // This is a simplified parser - you might want to use more sophisticated parsing
   const lines = response.split('\n');
   let currentSection: string | null = null;
-  
+
   for (const line of lines) {
     const trimmedLine = line.trim();
     if (trimmedLine.toLowerCase().includes('suggestion')) {
       currentSection = 'suggestions';
-    } else if (trimmedLine.toLowerCase().includes('issue') || trimmedLine.toLowerCase().includes('problem')) {
+    } else if (
+      trimmedLine.toLowerCase().includes('issue') ||
+      trimmedLine.toLowerCase().includes('problem')
+    ) {
       currentSection = 'issues';
     } else if (trimmedLine.startsWith('- ') && currentSection) {
       if (currentSection === 'suggestions') {
@@ -325,14 +330,15 @@ function parseAIResponse(response: string, request: PRAnalysisRequest): ReviewRe
 
 async function postGitHubComment(request: PRAnalysisRequest, comment: string): Promise<void> {
   const url = `https://api.github.com/repos/${request.repository}/issues/${request.pr_number}/comments`;
-  
+
   try {
-    await axios.post(url, 
+    await axios.post(
+      url,
       { body: comment },
       {
         headers: {
-          'Authorization': `token ${request.github_token}`,
-          'Accept': 'application/vnd.github.v3+json',
+          Authorization: `token ${request.github_token}`,
+          Accept: 'application/vnd.github.v3+json',
         },
       }
     );
@@ -341,7 +347,7 @@ async function postGitHubComment(request: PRAnalysisRequest, comment: string): P
   }
 }
 
-app.get('/health', (req, res) => {
+app.get('/health', (_req, res) => {
   res.json({
     status: 'healthy',
     ai_provider: process.env.AI_PROVIDER,

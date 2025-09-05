@@ -1,6 +1,8 @@
 # MCP Server Setup Guide for Watchdog
 
-This guide walks you through setting up a Model Context Protocol (MCP) server to enable AI-powered code reviews for multi-language projects (JavaScript/TypeScript, Python, Java, C++, SQL) in your Watchdog workflow.
+This guide walks you through setting up a Model Context Protocol (MCP) server to
+enable AI-powered code reviews for multi-language projects
+(JavaScript/TypeScript, Python, Java, C++, SQL) in your Watchdog workflow.
 
 ## Table of Contents
 
@@ -15,7 +17,12 @@ This guide walks you through setting up a Model Context Protocol (MCP) server to
 
 ## Overview
 
-The MCP server acts as a bridge between your GitHub Actions workflow and AI models (like Claude, GPT-4, etc.) to provide intelligent multi-language code reviews. It receives PR diffs and metadata from JavaScript/TypeScript, Python, Java, C++, and SQL files, processes them through AI models with language-specific context, and posts comprehensive review comments back to GitHub.
+The MCP server acts as a bridge between your GitHub Actions workflow and AI
+models (like Claude, GPT-4, etc.) to provide intelligent multi-language code
+reviews. It receives PR diffs and metadata from JavaScript/TypeScript, Python,
+Java, C++, and SQL files, processes them through AI models with
+language-specific context, and posts comprehensive review comments back to
+GitHub.
 
 ### Architecture
 
@@ -44,10 +51,13 @@ cd mcp-github-reviewer
 ```
 
 **Server Files:**
+
 - [`main.py`](mcp-servers/python/main.py) - FastAPI server implementation
-- [`requirements.txt`](mcp-servers/python/requirements.txt) - Python dependencies
+- [`requirements.txt`](mcp-servers/python/requirements.txt) - Python
+  dependencies
 - [`Dockerfile`](mcp-servers/python/Dockerfile) - Docker container configuration
-- [`env.example`](mcp-servers/python/env.example) - Environment variables template
+- [`env.example`](mcp-servers/python/env.example) - Environment variables
+  template
 
 #### 2. Install Dependencies
 
@@ -69,17 +79,17 @@ python main.py
 ```
 
 The server files are located in `mcp-servers/python/` and include:
+
 - [`main.py`](mcp-servers/python/main.py) - Main server application
-- [`requirements.txt`](mcp-servers/python/requirements.txt) - Python dependencies
+- [`requirements.txt`](mcp-servers/python/requirements.txt) - Python
+  dependencies
 - [`Dockerfile`](mcp-servers/python/Dockerfile) - Docker configuration
-- [`docker-compose.yml`](mcp-servers/python/docker-compose.yml) - Docker Compose configuration
-- [`env.example`](mcp-servers/python/env.example) - Environment variables template
+- [`docker-compose.yml`](mcp-servers/python/docker-compose.yml) - Docker Compose
+  configuration
+- [`env.example`](mcp-servers/python/env.example) - Environment variables
+  template
 - [`.gitignore`](mcp-servers/python/.gitignore) - Git ignore file
 - [`README.md`](mcp-servers/python/README.md) - Quick start guide
-
-
-
-
 
 ### Option 2: Node.js MCP Server
 
@@ -93,8 +103,11 @@ cd mcp-github-reviewer-js
 ```
 
 **Server Files:**
-- [`src/server.ts`](mcp-servers/node/src/server.ts) - Express.js server implementation
-- [`package.json`](mcp-servers/node/package.json) - Node.js dependencies and scripts
+
+- [`src/server.ts`](mcp-servers/node/src/server.ts) - Express.js server
+  implementation
+- [`package.json`](mcp-servers/node/package.json) - Node.js dependencies and
+  scripts
 - [`tsconfig.json`](mcp-servers/node/tsconfig.json) - TypeScript configuration
 - [`Dockerfile`](mcp-servers/node/Dockerfile) - Docker container configuration
 - [`env.example`](mcp-servers/node/env.example) - Environment variables template
@@ -126,22 +139,24 @@ npm run dev
 ```
 
 The server files are located in `mcp-servers/node/` and include:
+
 - [`src/server.ts`](mcp-servers/node/src/server.ts) - Main server application
-- [`package.json`](mcp-servers/node/package.json) - Node.js dependencies and scripts
+- [`package.json`](mcp-servers/node/package.json) - Node.js dependencies and
+  scripts
 - [`tsconfig.json`](mcp-servers/node/tsconfig.json) - TypeScript configuration
 - [`Dockerfile`](mcp-servers/node/Dockerfile) - Docker configuration
-- [`docker-compose.yml`](mcp-servers/node/docker-compose.yml) - Docker Compose configuration
+- [`docker-compose.yml`](mcp-servers/node/docker-compose.yml) - Docker Compose
+  configuration
 - [`env.example`](mcp-servers/node/env.example) - Environment variables template
 - [`.gitignore`](mcp-servers/node/.gitignore) - Git ignore file
 - [`README.md`](mcp-servers/node/README.md) - Quick start guide
-
-
 
 ## GitHub Integration
 
 ### 1. Update GitHub Actions Workflow
 
-Replace the MCP client script in your GitHub Actions workflow with a call to your MCP server:
+Replace the MCP client script in your GitHub Actions workflow with a call to
+your MCP server:
 
 ```yaml
 - name: Call MCP Server for AI Review
@@ -171,13 +186,13 @@ Add these secrets to your GitHub repository:
 
 ### Environment Variables
 
-| Variable | Description | Required |
-|----------|-------------|----------|
-| `AI_PROVIDER` | AI provider (`anthropic` or `openai`) | Yes |
-| `ANTHROPIC_API_KEY` | Anthropic API key | If using Anthropic |
-| `OPENAI_API_KEY` | OpenAI API key | If using OpenAI |
-| `GITHUB_TOKEN` | GitHub token for API access | Yes |
-| `PORT` | Server port (default: 8000) | No |
+| Variable            | Description                           | Required           |
+| ------------------- | ------------------------------------- | ------------------ |
+| `AI_PROVIDER`       | AI provider (`anthropic` or `openai`) | Yes                |
+| `ANTHROPIC_API_KEY` | Anthropic API key                     | If using Anthropic |
+| `OPENAI_API_KEY`    | OpenAI API key                        | If using OpenAI    |
+| `GITHUB_TOKEN`      | GitHub token for API access           | Yes                |
+| `PORT`              | Server port (default: 8000)           | No                 |
 
 ### Customization Options
 
@@ -200,17 +215,24 @@ npm run dev
 
 ### 2. AWS ECS Deployment
 
-Both Python and Node.js servers can be deployed to AWS ECS with Fargate for production use:
+Both Python and Node.js servers can be deployed to AWS ECS with Fargate for
+production use:
 
 #### Python FastAPI Server
 
 **Deployment Files:**
-- [`cloudformation.yaml`](mcp-servers/python/aws-ecs/cloudformation.yaml) - AWS infrastructure template
-- [`deploy.sh`](mcp-servers/python/aws-ecs/deploy.sh) - Automated deployment script
-- [`setup-secrets.sh`](mcp-servers/python/aws-ecs/setup-secrets.sh) - Secure secrets setup
-- [`README.md`](mcp-servers/python/aws-ecs/README.md) - Complete deployment guide
+
+- [`cloudformation.yaml`](mcp-servers/python/aws-ecs/cloudformation.yaml) - AWS
+  infrastructure template
+- [`deploy.sh`](mcp-servers/python/aws-ecs/deploy.sh) - Automated deployment
+  script
+- [`setup-secrets.sh`](mcp-servers/python/aws-ecs/setup-secrets.sh) - Secure
+  secrets setup
+- [`README.md`](mcp-servers/python/aws-ecs/README.md) - Complete deployment
+  guide
 
 **Quick Deploy:**
+
 ```bash
 cd mcp-servers/python/aws-ecs
 ./setup-secrets.sh production
@@ -220,12 +242,17 @@ cd mcp-servers/python/aws-ecs
 #### Node.js Express Server
 
 **Deployment Files:**
-- [`cloudformation.yaml`](mcp-servers/node/aws-ecs/cloudformation.yaml) - AWS infrastructure template
-- [`deploy.sh`](mcp-servers/node/aws-ecs/deploy.sh) - Automated deployment script
-- [`setup-secrets.sh`](mcp-servers/node/aws-ecs/setup-secrets.sh) - Secure secrets setup
+
+- [`cloudformation.yaml`](mcp-servers/node/aws-ecs/cloudformation.yaml) - AWS
+  infrastructure template
+- [`deploy.sh`](mcp-servers/node/aws-ecs/deploy.sh) - Automated deployment
+  script
+- [`setup-secrets.sh`](mcp-servers/node/aws-ecs/setup-secrets.sh) - Secure
+  secrets setup
 - [`README.md`](mcp-servers/node/aws-ecs/README.md) - Complete deployment guide
 
 **Quick Deploy:**
+
 ```bash
 cd mcp-servers/node/aws-ecs
 ./setup-secrets.sh production
@@ -259,7 +286,8 @@ CMD ["python", "main.py"]
 
 ### 4. Self-hosted
 
-Deploy on your own server with reverse proxy (nginx) and process manager (PM2, systemd).
+Deploy on your own server with reverse proxy (nginx) and process manager (PM2,
+systemd).
 
 ## Testing
 
@@ -400,4 +428,5 @@ Send targeted notifications based on language and team structure.
 - [ ] Customize prompts and responses
 - [ ] Monitor and iterate
 
-For questions or issues, please check the troubleshooting section or create an issue in the repository.
+For questions or issues, please check the troubleshooting section or create an
+issue in the repository.

@@ -1,6 +1,7 @@
 # AWS ECS Deployment for MCP GitHub Reviewer
 
-This directory contains all the necessary files to deploy the MCP GitHub Reviewer FastAPI server to AWS ECS using Fargate.
+This directory contains all the necessary files to deploy the MCP GitHub
+Reviewer FastAPI server to AWS ECS using Fargate.
 
 ## Prerequisites
 
@@ -20,7 +21,8 @@ cd mcp-servers/python/aws-ecs
 ./setup-secrets.sh
 ```
 
-This will prompt you for your API keys and store them securely in AWS Secrets Manager.
+This will prompt you for your API keys and store them securely in AWS Secrets
+Manager.
 
 ### 2. Deploy to ECS
 
@@ -31,6 +33,7 @@ Deploy the complete infrastructure:
 ```
 
 Examples:
+
 ```bash
 # Deploy to production in us-west-1
 ./deploy.sh production us-west-1
@@ -111,6 +114,7 @@ aws logs tail /ecs/mcp-github-reviewer-production --follow --region us-west-1
 ```
 
 Or through the AWS Console:
+
 1. Go to CloudWatch > Log groups
 2. Find `/ecs/mcp-github-reviewer-{environment}`
 3. View log streams
@@ -130,7 +134,8 @@ aws ecs update-service \
 
 ### Auto Scaling
 
-To enable auto scaling, you can add CloudWatch alarms and ECS auto scaling policies to the CloudFormation template.
+To enable auto scaling, you can add CloudWatch alarms and ECS auto scaling
+policies to the CloudFormation template.
 
 ## Troubleshooting
 
@@ -174,7 +179,8 @@ aws ecs describe-tasks \
 
 ### Fargate Spot
 
-The CloudFormation template includes Fargate Spot capacity provider for cost savings. To use Spot instances:
+The CloudFormation template includes Fargate Spot capacity provider for cost
+savings. To use Spot instances:
 
 ```bash
 aws ecs update-service \
@@ -185,7 +191,8 @@ aws ecs update-service \
 
 ### Resource Right-sizing
 
-Monitor CloudWatch metrics and adjust CPU/memory allocation based on actual usage.
+Monitor CloudWatch metrics and adjust CPU/memory allocation based on actual
+usage.
 
 ## Security
 
@@ -214,4 +221,5 @@ To remove all resources:
 aws cloudformation delete-stack --stack-name mcp-github-reviewer-production
 ```
 
-Note: This will not delete the ECR repository or secrets. Remove those manually if needed.
+Note: This will not delete the ECR repository or secrets. Remove those manually
+if needed.

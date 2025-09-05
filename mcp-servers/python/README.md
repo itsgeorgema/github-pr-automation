@@ -1,15 +1,19 @@
 # Python MCP Server for GitHub PR Reviews
 
-This is a Python implementation of the MCP (Model Context Protocol) server for AI-powered GitHub PR reviews using the latest AI models (Claude 4 Sonnet and GPT-5).
+This is a Python implementation of the MCP (Model Context Protocol) server for
+AI-powered GitHub PR reviews using the latest AI models (Claude 4 Sonnet and
+GPT-5).
 
 ## Quick Start
 
 1. **Install dependencies:**
+
    ```bash
    pip install -r requirements.txt
    ```
 
 2. **Configure environment:**
+
    ```bash
    cp env.example .env
    # Edit .env with your API keys
@@ -31,12 +35,14 @@ This is a Python implementation of the MCP (Model Context Protocol) server for A
 ## Docker
 
 ### Using Docker directly:
+
 ```bash
 docker build -t mcp-github-reviewer .
 docker run -p 8000:8000 --env-file .env mcp-github-reviewer
 ```
 
 ### Using Docker Compose:
+
 ```bash
 docker-compose up -d
 ```

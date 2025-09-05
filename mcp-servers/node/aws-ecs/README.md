@@ -1,12 +1,16 @@
 # MCP GitHub Reviewer Express.js - AWS ECS Deployment
 
-This directory contains all the necessary files to deploy the Express.js MCP server to AWS ECS using CloudFormation.
+This directory contains all the necessary files to deploy the Express.js MCP
+server to AWS ECS using CloudFormation.
 
 ## Files
 
-- [`cloudformation.yaml`](./cloudformation.yaml) - CloudFormation template for ECS infrastructure
-- [`task-definition.json`](./task-definition.json) - ECS task definition template
-- [`service-definition.json`](./service-definition.json) - ECS service definition template
+- [`cloudformation.yaml`](./cloudformation.yaml) - CloudFormation template for
+  ECS infrastructure
+- [`task-definition.json`](./task-definition.json) - ECS task definition
+  template
+- [`service-definition.json`](./service-definition.json) - ECS service
+  definition template
 - [`deploy.sh`](./deploy.sh) - Automated deployment script
 - [`setup-secrets.sh`](./setup-secrets.sh) - Secure secrets setup script
 - [`README.md`](./README.md) - This documentation
@@ -32,6 +36,7 @@ First, securely store your API keys in AWS Secrets Manager:
 ```
 
 This script will:
+
 - Prompt for your API keys securely (hidden input)
 - Allow you to skip optional keys (press Enter to skip)
 - Validate key formats
@@ -39,10 +44,12 @@ This script will:
 - Clear sensitive data from shell history
 
 **Required for default configuration:**
+
 - OpenAI API key
 - GitHub token
 
 **Optional:**
+
 - Anthropic API key (only needed if you want to use Claude instead of GPT)
 
 ### 2. Deploy to ECS
@@ -58,6 +65,7 @@ Deploy the Express.js server to AWS ECS:
 ```
 
 This script will:
+
 - Build the Docker image
 - Push to ECR
 - Deploy CloudFormation stack
@@ -69,17 +77,20 @@ This script will:
 The CloudFormation template creates:
 
 ### Core Resources
+
 - **ECS Cluster** - Fargate cluster for running containers
 - **ECR Repository** - For storing Docker images
 - **Application Load Balancer** - Public-facing load balancer
 - **Target Group** - Routes traffic to ECS tasks
 
 ### Security
+
 - **Security Groups** - Control network access
 - **IAM Roles** - Task execution and task roles
 - **Secrets Manager** - Secure API key storage
 
 ### Monitoring
+
 - **CloudWatch Logs** - Application logging
 - **Health Checks** - Container and load balancer health monitoring
 
@@ -99,7 +110,8 @@ Secrets are automatically injected from AWS Secrets Manager:
 
 - `OPENAI_API_KEY` - OpenAI GPT API key (required for default configuration)
 - `GITHUB_TOKEN` - GitHub Personal Access Token (required)
-- `ANTHROPIC_API_KEY` - Anthropic Claude API key (optional - only needed if AI_PROVIDER=anthropic)
+- `ANTHROPIC_API_KEY` - Anthropic Claude API key (optional - only needed if
+  AI_PROVIDER=anthropic)
 
 ## Monitoring
 
@@ -242,7 +254,8 @@ aws elbv2 describe-target-health \
 
 ## GitHub Actions Integration
 
-After deployment, update your GitHub Actions workflow to use the deployed MCP server:
+After deployment, update your GitHub Actions workflow to use the deployed MCP
+server:
 
 ```yaml
 - name: Run AI Analysis
@@ -256,15 +269,15 @@ After deployment, update your GitHub Actions workflow to use the deployed MCP se
 
 Both Express.js and Python FastAPI versions are available:
 
-| Feature | Express.js | Python FastAPI |
-|---------|------------|----------------|
-| **Runtime** | Node.js 18 | Python 3.11 |
-| **Memory** | 1GB | 1GB |
-| **CPU** | 0.5 vCPU | 0.5 vCPU |
-| **Cold Start** | Faster | Slower |
-| **Dependencies** | Smaller | Larger |
-| **Type Safety** | TypeScript | Pydantic |
-| **Default AI Provider** | OpenAI | OpenAI |
+| Feature                 | Express.js | Python FastAPI |
+| ----------------------- | ---------- | -------------- |
+| **Runtime**             | Node.js 18 | Python 3.11    |
+| **Memory**              | 1GB        | 1GB            |
+| **CPU**                 | 0.5 vCPU   | 0.5 vCPU       |
+| **Cold Start**          | Faster     | Slower         |
+| **Dependencies**        | Smaller    | Larger         |
+| **Type Safety**         | TypeScript | Pydantic       |
+| **Default AI Provider** | OpenAI     | OpenAI         |
 
 Choose based on your team's expertise and preferences.
 

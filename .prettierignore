@@ -1,45 +1,41 @@
-# Dependencies
+# Ignore workflow files
+.github/workflows/
+
+# Ignore vite-test-website
+vite-test-website/
+
+# Ignore node_modules
 node_modules/
+
+# Ignore build outputs
+dist/
+build/
+.next/
+out/
+
+# Ignore generated files
+*.min.js
+*.min.css
+
+# Ignore lock files
 package-lock.json
 yarn.lock
 pnpm-lock.yaml
 
-# Build outputs
-.next/
-out/
-build/
-dist/
-.nuxt/
-.vuepress/dist/
-storybook-static/
-
-# Coverage
+# Ignore coverage reports
 coverage/
-.nyc_output/
-.coverage/
 
-# Cache
-.cache/
-.parcel-cache/
-.eslintcache
-*.tsbuildinfo
-
-# Logs
+# Ignore logs
 *.log
 logs/
 
-# OS
-.DS_Store
-Thumbs.db
+# Ignore environment files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
 
-# IDE
-.vscode/
-.idea/
-
-# Temporary
-tmp/
-temp/
-
-# Generated files
-CHANGELOG.md
-LICENSE
+# Ignore files that don't have parsers
+*.xml
+*.svg

@@ -1,3 +1,16 @@
+# Acme Corp — Vite React TS Demo
+
+This is a responsive, professional business website built on Vite + React + TypeScript.
+
+Key features
+- Client-side routing with React Router
+- Responsive navbar, hero, features, and contact form
+- Accessible components and keyboard-friendly navigation
+
+Scripts
+- dev: Start local dev server
+- build: Type-check and build for production
+- preview: Preview the production build locally
 # React + TypeScript + Vite
 
 This template provides a minimal setup to get React working in Vite with HMR and

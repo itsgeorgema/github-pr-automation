@@ -5,8 +5,14 @@ const features = [
     title: 'Strategy & Consulting',
     desc: 'We partner with you to align technology initiatives to business outcomes.',
   },
-  { title: 'Design & UX', desc: 'Human-centered design that converts and delights across devices.' },
-  { title: 'Cloud & DevOps', desc: 'Scalable, secure infrastructure with modern CI/CD and observability.' },
+  {
+    title: 'Design & UX',
+    desc: 'Human-centered design that converts and delights across devices.',
+  },
+  {
+    title: 'Cloud & DevOps',
+    desc: 'Scalable, secure infrastructure with modern CI/CD and observability.',
+  },
 ];
 
 const Home = () => {
@@ -20,8 +26,8 @@ const Home = () => {
               <span className='accent'> Grow confidently.</span>
             </h1>
             <p>
-              Acme Corp helps modern businesses ship great products with premium engineering and design
-              services.
+              Acme Corp helps modern businesses ship great products with premium engineering and
+              design services.
             </p>
             <div className='hero-cta'>
               <Link to='/contact' className='btn btn-primary'>

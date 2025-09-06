@@ -35,10 +35,22 @@ const Contact = () => {
           </div>
           <div className='field'>
             <label htmlFor='message'>Message</label>
-            <textarea id='message' name='message' rows={5} placeholder='How can we help?' required />
+            <textarea
+              id='message'
+              name='message'
+              rows={5}
+              placeholder='How can we help?'
+              required
+            />
           </div>
-          <button className='btn btn-primary' type='submit'>Send message</button>
-          {status && <p role='status' className='form-status'>{status}</p>}
+          <button className='btn btn-primary' type='submit'>
+            Send message
+          </button>
+          {status && (
+            <p role='status' className='form-status'>
+              {status}
+            </p>
+          )}
         </form>
       </div>
     </section>

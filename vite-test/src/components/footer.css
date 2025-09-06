@@ -1,5 +1,5 @@
 .site-footer {
-  border-top: 1px solid rgba(0,0,0,0.08);
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
   background: #0b1020;
   color: #e5e7eb;
   margin-top: 3rem;
@@ -22,5 +22,7 @@
   color: #c7d2fe;
 }
 @media (max-width: 768px) {
-  .footer-content { flex-direction: column; }
+  .footer-content {
+    flex-direction: column;
+  }
 }

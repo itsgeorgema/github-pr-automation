@@ -6,7 +6,8 @@ const About = () => {
         <p className='lead'>We’re a boutique team of engineers, designers, and strategists.</p>
         <p>
           Since 2015, we’ve helped startups and enterprises ship category-defining products. Our
-          distributed team operates across time zones and disciplines to deliver end-to-end outcomes.
+          distributed team operates across time zones and disciplines to deliver end-to-end
+          outcomes.
         </p>
       </div>
     </section>
